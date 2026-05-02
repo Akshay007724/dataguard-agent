@@ -1,0 +1,796 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>DataGuard — Pipeline Sentinel Dashboard</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Fira+Code:wght@400;500;600;700&family=Fira+Sans:wght@300;400;500;600;700&display=swap" rel="stylesheet" />
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.3/dist/chart.umd.min.js"></script>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg:           #030712;
+      --bg-surface:   #0d1117;
+      --bg-card:      #111827;
+      --bg-card-hover:#161f2e;
+      --border:       #1f2937;
+      --border-active:#2563eb33;
+      --primary:      #2563eb;
+      --primary-glow: #2563eb40;
+      --blue-light:   #3b82f6;
+      --orange:       #f97316;
+      --green:        #22c55e;
+      --yellow:       #eab308;
+      --red:          #ef4444;
+      --text:         #f1f5f9;
+      --text-muted:   #64748b;
+      --text-dim:     #94a3b8;
+      --font-ui:      'Fira Sans', system-ui, sans-serif;
+      --font-mono:    'Fira Code', 'Cascadia Code', monospace;
+      --radius:       8px;
+      --radius-lg:    12px;
+      --shadow:       0 1px 3px rgba(0,0,0,.6), 0 0 0 1px var(--border);
+      --glow-blue:    0 0 20px var(--primary-glow);
+    }
+
+    html { font-size: 16px; }
+    body {
+      font-family: var(--font-ui);
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100dvh;
+      line-height: 1.6;
+    }
+
+    /* ── Scrollbar ─────────────────────────────────────────── */
+    ::-webkit-scrollbar { width: 6px; height: 6px; }
+    ::-webkit-scrollbar-track { background: var(--bg); }
+    ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+
+    /* ── Layout ────────────────────────────────────────────── */
+    .layout { display: grid; grid-template-columns: 220px 1fr; min-height: 100dvh; }
+
+    /* ── Sidebar ───────────────────────────────────────────── */
+    .sidebar {
+      background: var(--bg-surface);
+      border-right: 1px solid var(--border);
+      padding: 0;
+      display: flex;
+      flex-direction: column;
+      position: sticky;
+      top: 0;
+      height: 100dvh;
+      overflow-y: auto;
+    }
+    .sidebar-brand {
+      padding: 20px 16px 16px;
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    .brand-icon {
+      width: 32px; height: 32px;
+      background: var(--primary);
+      border-radius: 8px;
+      display: flex; align-items: center; justify-content: center;
+      box-shadow: var(--glow-blue);
+      flex-shrink: 0;
+    }
+    .brand-icon svg { width: 18px; height: 18px; color: #fff; }
+    .brand-name { font-family: var(--font-mono); font-size: 14px; font-weight: 600; color: var(--text); }
+    .brand-sub  { font-size: 10px; color: var(--text-muted); font-family: var(--font-mono); }
+
+    .nav { padding: 12px 8px; flex: 1; }
+    .nav-section { font-size: 10px; font-weight: 600; text-transform: uppercase; letter-spacing: .08em; color: var(--text-muted); padding: 8px 8px 4px; margin-top: 4px; }
+    .nav-item {
+      display: flex; align-items: center; gap: 10px;
+      padding: 8px 10px; border-radius: var(--radius); cursor: pointer;
+      font-size: 13px; color: var(--text-dim); font-weight: 500;
+      transition: background 150ms, color 150ms;
+      text-decoration: none; margin-bottom: 2px;
+    }
+    .nav-item:hover { background: var(--bg-card); color: var(--text); }
+    .nav-item.active { background: var(--primary-glow); color: var(--blue-light); border: 1px solid var(--border-active); }
+    .nav-item svg { width: 16px; height: 16px; flex-shrink: 0; }
+    .nav-badge { margin-left: auto; background: var(--red); color: #fff; font-size: 10px; font-family: var(--font-mono); padding: 1px 6px; border-radius: 10px; }
+
+    .sidebar-footer {
+      padding: 12px 16px;
+      border-top: 1px solid var(--border);
+      font-size: 11px;
+      color: var(--text-muted);
+      font-family: var(--font-mono);
+    }
+    .status-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--green); display: inline-block; margin-right: 6px; animation: pulse 2s infinite; }
+    @keyframes pulse { 0%,100% { opacity: 1; } 50% { opacity: .4; } }
+
+    /* ── Main ──────────────────────────────────────────────── */
+    .main { overflow-x: hidden; }
+
+    .topbar {
+      background: var(--bg-surface);
+      border-bottom: 1px solid var(--border);
+      padding: 12px 24px;
+      display: flex; align-items: center; justify-content: space-between;
+      position: sticky; top: 0; z-index: 40;
+    }
+    .topbar-title { font-size: 15px; font-weight: 600; }
+    .topbar-right { display: flex; align-items: center; gap: 12px; }
+    .btn {
+      display: inline-flex; align-items: center; gap: 6px;
+      padding: 6px 14px; border-radius: var(--radius);
+      font-size: 13px; font-weight: 500; cursor: pointer;
+      border: 1px solid var(--border); transition: all 150ms;
+      background: var(--bg-card); color: var(--text-dim);
+    }
+    .btn:hover { background: var(--bg-card-hover); color: var(--text); border-color: #374151; }
+    .btn-primary { background: var(--primary); color: #fff; border-color: var(--primary); }
+    .btn-primary:hover { background: #1d4ed8; border-color: #1d4ed8; }
+    .btn svg { width: 14px; height: 14px; }
+
+    .time-badge {
+      font-family: var(--font-mono); font-size: 11px;
+      background: var(--bg-card); border: 1px solid var(--border);
+      padding: 4px 10px; border-radius: var(--radius); color: var(--text-muted);
+    }
+
+    .page { padding: 24px; max-width: 1400px; }
+
+    /* ── KPI Cards ─────────────────────────────────────────── */
+    .kpi-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; margin-bottom: 24px; }
+    .kpi-card {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-lg);
+      padding: 20px;
+      transition: border-color 150ms, box-shadow 150ms;
+    }
+    .kpi-card:hover { border-color: #374151; box-shadow: var(--shadow); }
+    .kpi-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px; }
+    .kpi-label { font-size: 12px; font-weight: 500; color: var(--text-muted); text-transform: uppercase; letter-spacing: .06em; }
+    .kpi-icon { width: 32px; height: 32px; border-radius: var(--radius); display: flex; align-items: center; justify-content: center; }
+    .kpi-icon svg { width: 16px; height: 16px; }
+    .kpi-icon.green  { background: #16a34a20; color: var(--green); }
+    .kpi-icon.red    { background: #dc262620; color: var(--red); }
+    .kpi-icon.yellow { background: #ca8a0420; color: var(--yellow); }
+    .kpi-icon.blue   { background: var(--primary-glow); color: var(--blue-light); }
+    .kpi-value { font-family: var(--font-mono); font-size: 32px; font-weight: 700; line-height: 1; margin-bottom: 6px; }
+    .kpi-value.green  { color: var(--green); }
+    .kpi-value.red    { color: var(--red); }
+    .kpi-value.yellow { color: var(--yellow); }
+    .kpi-value.blue   { color: var(--blue-light); }
+    .kpi-delta { font-size: 12px; color: var(--text-muted); }
+    .kpi-delta .up   { color: var(--green); }
+    .kpi-delta .down { color: var(--red); }
+
+    /* ── Section ───────────────────────────────────────────── */
+    .section-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 14px; }
+    .section-title { font-size: 14px; font-weight: 600; }
+    .section-sub { font-size: 12px; color: var(--text-muted); margin-top: 2px; }
+
+    /* ── Charts row ────────────────────────────────────────── */
+    .charts-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 24px; }
+    .chart-card {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-lg);
+      padding: 20px;
+    }
+    .chart-wrap { position: relative; height: 220px; }
+
+    /* ── Pipeline table ────────────────────────────────────── */
+    .table-card {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-lg);
+      overflow: hidden;
+      margin-bottom: 24px;
+    }
+    .table-header { padding: 16px 20px; border-bottom: 1px solid var(--border); display: flex; align-items: center; justify-content: space-between; }
+    .table-scroll { overflow-x: auto; }
+    table { width: 100%; border-collapse: collapse; font-size: 13px; }
+    thead { background: #0d1117; }
+    th { padding: 10px 20px; text-align: left; font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: .06em; color: var(--text-muted); white-space: nowrap; }
+    td { padding: 12px 20px; border-top: 1px solid var(--border); white-space: nowrap; vertical-align: middle; }
+    tr:hover td { background: var(--bg-card-hover); }
+    .td-mono { font-family: var(--font-mono); font-size: 12px; }
+
+    .badge {
+      display: inline-flex; align-items: center; gap: 5px;
+      padding: 2px 8px; border-radius: 20px;
+      font-size: 11px; font-weight: 600; font-family: var(--font-mono);
+    }
+    .badge::before { content: ''; width: 5px; height: 5px; border-radius: 50%; background: currentColor; }
+    .badge.healthy  { background: #16a34a18; color: var(--green); border: 1px solid #16a34a40; }
+    .badge.failed   { background: #dc262618; color: var(--red);   border: 1px solid #dc262640; }
+    .badge.degraded { background: #ca8a0418; color: var(--yellow);border: 1px solid #ca8a0440; }
+    .badge.running  { background: #2563eb18; color: var(--blue-light); border: 1px solid #2563eb40; }
+
+    .severity { font-size: 11px; font-weight: 600; }
+    .severity.critical { color: var(--red); }
+    .severity.high     { color: var(--orange); }
+    .severity.medium   { color: var(--yellow); }
+    .severity.low      { color: var(--text-muted); }
+
+    /* ── Bottom grid ───────────────────────────────────────── */
+    .bottom-grid { display: grid; grid-template-columns: 1fr 380px; gap: 16px; margin-bottom: 24px; }
+
+    /* ── Incident feed ─────────────────────────────────────── */
+    .feed-card {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-lg);
+      overflow: hidden;
+    }
+    .feed-header { padding: 16px 20px; border-bottom: 1px solid var(--border); }
+    .feed-list { max-height: 340px; overflow-y: auto; }
+    .feed-item {
+      display: flex; gap: 12px; padding: 14px 20px;
+      border-bottom: 1px solid var(--border);
+      transition: background 100ms;
+    }
+    .feed-item:hover { background: var(--bg-card-hover); }
+    .feed-item:last-child { border-bottom: none; }
+    .feed-dot {
+      width: 8px; height: 8px; border-radius: 50%;
+      flex-shrink: 0; margin-top: 6px;
+    }
+    .feed-dot.critical { background: var(--red); box-shadow: 0 0 6px var(--red); }
+    .feed-dot.high     { background: var(--orange); }
+    .feed-dot.medium   { background: var(--yellow); }
+    .feed-dot.low      { background: var(--text-muted); }
+    .feed-title { font-size: 13px; font-weight: 500; margin-bottom: 2px; }
+    .feed-meta  { font-size: 11px; color: var(--text-muted); font-family: var(--font-mono); }
+
+    /* ── Pattern hit gauge ─────────────────────────────────── */
+    .gauge-card {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-lg);
+      padding: 20px;
+      display: flex; flex-direction: column;
+    }
+    .gauge-wrap { position: relative; height: 180px; display: flex; align-items: center; justify-content: center; }
+    .gauge-center { position: absolute; text-align: center; }
+    .gauge-pct { font-family: var(--font-mono); font-size: 28px; font-weight: 700; color: var(--green); line-height: 1; }
+    .gauge-sub  { font-size: 11px; color: var(--text-muted); margin-top: 4px; }
+    .gauge-legend { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 12px; }
+    .gauge-legend-item { font-size: 11px; color: var(--text-muted); display: flex; align-items: center; gap: 6px; }
+    .gauge-legend-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+
+    /* ── Responsive ────────────────────────────────────────── */
+    @media (max-width: 1100px) {
+      .kpi-grid    { grid-template-columns: repeat(2, 1fr); }
+      .charts-grid { grid-template-columns: 1fr; }
+      .bottom-grid { grid-template-columns: 1fr; }
+    }
+    @media (max-width: 768px) {
+      .layout { grid-template-columns: 1fr; }
+      .sidebar { display: none; }
+      .kpi-grid { grid-template-columns: repeat(2, 1fr); }
+      .page { padding: 16px; }
+    }
+
+    /* ── Skeleton loader ───────────────────────────────────── */
+    .skeleton {
+      background: linear-gradient(90deg, var(--bg-card) 25%, var(--bg-card-hover) 50%, var(--bg-card) 75%);
+      background-size: 200% 100%;
+      animation: shimmer 1.5s infinite;
+      border-radius: 4px;
+    }
+    @keyframes shimmer { 0% { background-position: 200% 0; } 100% { background-position: -200% 0; } }
+  </style>
+</head>
+<body>
+<div class="layout">
+
+  <!-- ── Sidebar ──────────────────────────────────────────── -->
+  <aside class="sidebar" role="navigation" aria-label="Main navigation">
+    <div class="sidebar-brand">
+      <div class="brand-icon" aria-hidden="true">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
+        </svg>
+      </div>
+      <div>
+        <div class="brand-name">DataGuard</div>
+        <div class="brand-sub">pipeline-sentinel v0.1</div>
+      </div>
+    </div>
+
+    <nav class="nav">
+      <div class="nav-section">Monitor</div>
+      <a href="#" class="nav-item active" aria-current="page">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>
+        Overview
+      </a>
+      <a href="#" class="nav-item">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
+        Pipelines
+      </a>
+      <a href="#" class="nav-item">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+        Incidents
+        <span class="nav-badge" aria-label="3 active incidents">3</span>
+      </a>
+      <a href="#" class="nav-item">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 3h18v18H3zM3 9h18M9 21V9"/></svg>
+        Quality
+      </a>
+      <a href="#" class="nav-item">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="M12 1v4M12 19v4M4.22 4.22l2.83 2.83M16.95 16.95l2.83 2.83M1 12h4M19 12h4M4.22 19.78l2.83-2.83M16.95 7.05l2.83-2.83"/></svg>
+        Lineage
+      </a>
+
+      <div class="nav-section">Agents</div>
+      <a href="#" class="nav-item">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 2a10 10 0 1 0 0 20 10 10 0 0 0 0-20z"/><path d="M12 8v4l3 3"/></svg>
+        Watchdog
+      </a>
+      <a href="#" class="nav-item">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
+        Triage Runs
+      </a>
+      <a href="#" class="nav-item">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="14.5 17.5 3 6 3 3 6 3 17.5 14.5"/><line x1="13" y1="19" x2="19" y2="13"/><line x1="16" y1="16" x2="20" y2="20"/><line x1="19" y1="21" x2="21" y2="19"/></svg>
+        Remediation
+      </a>
+
+      <div class="nav-section">System</div>
+      <a href="#" class="nav-item">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="M19.07 4.93a10 10 0 0 1 0 14.14M4.93 4.93a10 10 0 0 0 0 14.14"/></svg>
+        MCP Tools
+      </a>
+      <a href="#" class="nav-item">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"/><circle cx="12" cy="12" r="3"/></svg>
+        Settings
+      </a>
+    </nav>
+
+    <div class="sidebar-footer">
+      <span class="status-dot" aria-hidden="true"></span>sentinel:8080 connected
+    </div>
+  </aside>
+
+  <!-- ── Main ─────────────────────────────────────────────── -->
+  <div class="main">
+    <header class="topbar">
+      <div>
+        <div class="topbar-title">Pipeline Overview</div>
+      </div>
+      <div class="topbar-right">
+        <div class="time-badge" id="clock" aria-live="polite" aria-atomic="true">--:--:-- UTC</div>
+        <button class="btn" onclick="refreshData()" aria-label="Refresh dashboard data">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg>
+          Refresh
+        </button>
+        <button class="btn btn-primary" aria-label="Run triage agent">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polygon points="5 3 19 12 5 21 5 3"/></svg>
+          Run Triage
+        </button>
+      </div>
+    </header>
+
+    <main class="page" id="main-content">
+
+      <!-- KPI Cards -->
+      <section aria-label="Key metrics" class="kpi-grid">
+        <div class="kpi-card">
+          <div class="kpi-header">
+            <span class="kpi-label">Healthy Pipelines</span>
+            <div class="kpi-icon green" aria-hidden="true">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+            </div>
+          </div>
+          <div class="kpi-value green" aria-label="18 healthy pipelines">18</div>
+          <div class="kpi-delta">of 24 total &nbsp;<span class="up">+2 since yesterday</span></div>
+        </div>
+
+        <div class="kpi-card">
+          <div class="kpi-header">
+            <span class="kpi-label">Failed Pipelines</span>
+            <div class="kpi-icon red" aria-hidden="true">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/></svg>
+            </div>
+          </div>
+          <div class="kpi-value red" aria-label="3 failed pipelines">3</div>
+          <div class="kpi-delta"><span class="down">+1 in last hour</span></div>
+        </div>
+
+        <div class="kpi-card">
+          <div class="kpi-header">
+            <span class="kpi-label">Degraded</span>
+            <div class="kpi-icon yellow" aria-hidden="true">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+            </div>
+          </div>
+          <div class="kpi-value yellow" aria-label="3 degraded pipelines">3</div>
+          <div class="kpi-delta"><span class="up">−1 since last poll</span></div>
+        </div>
+
+        <div class="kpi-card">
+          <div class="kpi-header">
+            <span class="kpi-label">Open Incidents</span>
+            <div class="kpi-icon blue" aria-hidden="true">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+            </div>
+          </div>
+          <div class="kpi-value blue" aria-label="5 open incidents">5</div>
+          <div class="kpi-delta"><span class="down">2 critical</span>, 3 high</div>
+        </div>
+      </section>
+
+      <!-- Charts -->
+      <div class="charts-grid">
+        <div class="chart-card">
+          <div class="section-header">
+            <div>
+              <div class="section-title">MCP Tool Latency</div>
+              <div class="section-sub">p50 / p95 / p99 — last 30 min</div>
+            </div>
+          </div>
+          <div class="chart-wrap">
+            <canvas id="latencyChart" aria-label="MCP tool latency over time line chart"></canvas>
+          </div>
+        </div>
+
+        <div class="chart-card">
+          <div class="section-header">
+            <div>
+              <div class="section-title">LLM Token Usage</div>
+              <div class="section-sub">Input vs output tokens per minute</div>
+            </div>
+          </div>
+          <div class="chart-wrap">
+            <canvas id="tokenChart" aria-label="LLM token usage over time area chart"></canvas>
+          </div>
+        </div>
+      </div>
+
+      <!-- Pipeline Table -->
+      <div class="table-card">
+        <div class="table-header">
+          <div>
+            <div class="section-title">Pipeline Status</div>
+            <div class="section-sub">Last refreshed <span id="last-refresh">just now</span></div>
+          </div>
+          <div style="display:flex;gap:8px">
+            <button class="btn" aria-label="Filter pipelines">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"/></svg>
+              Filter
+            </button>
+          </div>
+        </div>
+        <div class="table-scroll" role="region" aria-label="Pipeline status table" tabindex="0">
+          <table>
+            <thead>
+              <tr>
+                <th scope="col">Pipeline</th>
+                <th scope="col">Orchestrator</th>
+                <th scope="col">Status</th>
+                <th scope="col">Last Run</th>
+                <th scope="col">Duration</th>
+                <th scope="col">Severity</th>
+                <th scope="col">Diagnosis</th>
+              </tr>
+            </thead>
+            <tbody id="pipeline-table-body">
+              <tr>
+                <td class="td-mono">customer_ltv_daily</td>
+                <td><span style="color:var(--text-muted);font-size:12px">Airflow</span></td>
+                <td><span class="badge failed">failed</span></td>
+                <td class="td-mono" style="color:var(--text-muted)">2m ago</td>
+                <td class="td-mono" style="color:var(--text-muted)">0:04:12</td>
+                <td><span class="severity critical">CRITICAL</span></td>
+                <td style="font-size:12px;color:var(--text-dim)">Schema drift — column revenue missing</td>
+              </tr>
+              <tr>
+                <td class="td-mono">ingest_raw_events</td>
+                <td><span style="color:var(--text-muted);font-size:12px">Airflow</span></td>
+                <td><span class="badge failed">failed</span></td>
+                <td class="td-mono" style="color:var(--text-muted)">14m ago</td>
+                <td class="td-mono" style="color:var(--text-muted)">0:01:03</td>
+                <td><span class="severity high">HIGH</span></td>
+                <td style="font-size:12px;color:var(--text-dim)">ECONNREFUSED — source DB unavailable</td>
+              </tr>
+              <tr>
+                <td class="td-mono">ml_feature_pipeline</td>
+                <td><span style="color:var(--text-muted);font-size:12px">Argo</span></td>
+                <td><span class="badge failed">failed</span></td>
+                <td class="td-mono" style="color:var(--text-muted)">31m ago</td>
+                <td class="td-mono" style="color:var(--text-muted)">0:12:45</td>
+                <td><span class="severity high">HIGH</span></td>
+                <td style="font-size:12px;color:var(--text-dim)">OOMKilled — memory limit 512Mi exceeded</td>
+              </tr>
+              <tr>
+                <td class="td-mono">revenue_reconcile</td>
+                <td><span style="color:var(--text-muted);font-size:12px">Airflow</span></td>
+                <td><span class="badge degraded">degraded</span></td>
+                <td class="td-mono" style="color:var(--text-muted)">1h ago</td>
+                <td class="td-mono" style="color:var(--text-muted)">0:18:30</td>
+                <td><span class="severity medium">MEDIUM</span></td>
+                <td style="font-size:12px;color:var(--text-dim)">SLA breach — ran 18 min over 15 min budget</td>
+              </tr>
+              <tr>
+                <td class="td-mono">user_profile_sync</td>
+                <td><span style="color:var(--text-muted);font-size:12px">Argo</span></td>
+                <td><span class="badge degraded">degraded</span></td>
+                <td class="td-mono" style="color:var(--text-muted)">2h ago</td>
+                <td class="td-mono" style="color:var(--text-muted)">0:07:11</td>
+                <td><span class="severity medium">MEDIUM</span></td>
+                <td style="font-size:12px;color:var(--text-dim)">Upstream dependency delayed</td>
+              </tr>
+              <tr>
+                <td class="td-mono">dbt_transform_prod</td>
+                <td><span style="color:var(--text-muted);font-size:12px">Airflow</span></td>
+                <td><span class="badge healthy">healthy</span></td>
+                <td class="td-mono" style="color:var(--text-muted)">5m ago</td>
+                <td class="td-mono" style="color:var(--text-muted)">0:03:22</td>
+                <td><span class="severity low">—</span></td>
+                <td style="font-size:12px;color:var(--text-muted)">—</td>
+              </tr>
+              <tr>
+                <td class="td-mono">analytics_aggregate</td>
+                <td><span style="color:var(--text-muted);font-size:12px">Airflow</span></td>
+                <td><span class="badge healthy">healthy</span></td>
+                <td class="td-mono" style="color:var(--text-muted)">8m ago</td>
+                <td class="td-mono" style="color:var(--text-muted)">0:05:44</td>
+                <td><span class="severity low">—</span></td>
+                <td style="font-size:12px;color:var(--text-muted)">—</td>
+              </tr>
+              <tr>
+                <td class="td-mono">segment_export_daily</td>
+                <td><span style="color:var(--text-muted);font-size:12px">Argo</span></td>
+                <td><span class="badge running">running</span></td>
+                <td class="td-mono" style="color:var(--text-muted)">now</td>
+                <td class="td-mono" style="color:var(--blue-light)">0:02:07…</td>
+                <td><span class="severity low">—</span></td>
+                <td style="font-size:12px;color:var(--text-muted)">—</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- Bottom grid: incident feed + pattern gauge -->
+      <div class="bottom-grid">
+
+        <!-- Incident Feed -->
+        <div class="feed-card">
+          <div class="feed-header">
+            <div class="section-title">Recent Incidents</div>
+            <div class="section-sub">Filed by TriageAgent in last 24h</div>
+          </div>
+          <ol class="feed-list" aria-label="Recent incidents">
+            <li class="feed-item">
+              <div class="feed-dot critical" aria-hidden="true"></div>
+              <div>
+                <div class="feed-title">Schema drift — customer_ltv_daily</div>
+                <div class="feed-meta">INC-0047 &nbsp;·&nbsp; CRITICAL &nbsp;·&nbsp; 2m ago &nbsp;·&nbsp; confidence 0.97</div>
+              </div>
+            </li>
+            <li class="feed-item">
+              <div class="feed-dot high" aria-hidden="true"></div>
+              <div>
+                <div class="feed-title">Source unavailable — ingest_raw_events</div>
+                <div class="feed-meta">INC-0046 &nbsp;·&nbsp; HIGH &nbsp;·&nbsp; 14m ago &nbsp;·&nbsp; confidence 0.92</div>
+              </div>
+            </li>
+            <li class="feed-item">
+              <div class="feed-dot high" aria-hidden="true"></div>
+              <div>
+                <div class="feed-title">OOMKilled — ml_feature_pipeline</div>
+                <div class="feed-meta">INC-0045 &nbsp;·&nbsp; HIGH &nbsp;·&nbsp; 31m ago &nbsp;·&nbsp; confidence 0.99</div>
+              </div>
+            </li>
+            <li class="feed-item">
+              <div class="feed-dot medium" aria-hidden="true"></div>
+              <div>
+                <div class="feed-title">SLA breach — revenue_reconcile</div>
+                <div class="feed-meta">INC-0044 &nbsp;·&nbsp; MEDIUM &nbsp;·&nbsp; 1h ago &nbsp;·&nbsp; confidence 0.85</div>
+              </div>
+            </li>
+            <li class="feed-item">
+              <div class="feed-dot medium" aria-hidden="true"></div>
+              <div>
+                <div class="feed-title">Upstream delay — user_profile_sync</div>
+                <div class="feed-meta">INC-0043 &nbsp;·&nbsp; MEDIUM &nbsp;·&nbsp; 2h ago &nbsp;·&nbsp; confidence 0.78</div>
+              </div>
+            </li>
+          </ol>
+        </div>
+
+        <!-- Pattern Hit Gauge -->
+        <div class="gauge-card">
+          <div class="section-title">Pattern Match Rate</div>
+          <div class="section-sub" style="margin-bottom:4px">LLM bypass via deterministic matchers</div>
+          <div class="gauge-wrap">
+            <canvas id="gaugeChart" aria-label="Donut chart showing 74% pattern match rate"></canvas>
+            <div class="gauge-center">
+              <div class="gauge-pct">74%</div>
+              <div class="gauge-sub">LLM bypassed</div>
+            </div>
+          </div>
+          <div class="gauge-legend">
+            <div class="gauge-legend-item">
+              <div class="gauge-legend-dot" style="background:var(--green)"></div>
+              Deterministic (74%)
+            </div>
+            <div class="gauge-legend-item">
+              <div class="gauge-legend-dot" style="background:var(--primary)"></div>
+              LLM diagnosed (26%)
+            </div>
+          </div>
+          <div style="margin-top:16px;padding-top:12px;border-top:1px solid var(--border)">
+            <div style="font-size:12px;color:var(--text-muted);margin-bottom:8px">Top patterns (24h)</div>
+            <div style="display:flex;flex-direction:column;gap:6px">
+              <div style="display:flex;align-items:center;justify-content:space-between;font-size:12px">
+                <span class="td-mono" style="color:var(--text-dim)">oom_killed</span>
+                <span style="color:var(--green);font-family:var(--font-mono)">31</span>
+              </div>
+              <div style="display:flex;align-items:center;justify-content:space-between;font-size:12px">
+                <span class="td-mono" style="color:var(--text-dim)">connection_timeout</span>
+                <span style="color:var(--green);font-family:var(--font-mono)">27</span>
+              </div>
+              <div style="display:flex;align-items:center;justify-content:space-between;font-size:12px">
+                <span class="td-mono" style="color:var(--text-dim)">schema_drift</span>
+                <span style="color:var(--green);font-family:var(--font-mono)">18</span>
+              </div>
+              <div style="display:flex;align-items:center;justify-content:space-between;font-size:12px">
+                <span class="td-mono" style="color:var(--text-dim)">key_error</span>
+                <span style="color:var(--green);font-family:var(--font-mono)">12</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+      </div>
+    </main>
+  </div>
+</div>
+
+<script>
+  /* ── UTC Clock ─────────────────────────────────────────── */
+  function updateClock() {
+    document.getElementById('clock').textContent =
+      new Date().toISOString().slice(11, 19) + ' UTC';
+  }
+  updateClock();
+  setInterval(updateClock, 1000);
+
+  /* ── Chart defaults ────────────────────────────────────── */
+  const FONT = "'Fira Code', monospace";
+  Chart.defaults.color = '#64748b';
+  Chart.defaults.font.family = FONT;
+  Chart.defaults.font.size = 11;
+
+  function gridLines() {
+    return { color: '#1f2937', tickColor: 'transparent', borderColor: '#1f2937' };
+  }
+
+  /* ── Generate mock time labels ─────────────────────────── */
+  function timeLabels(n, stepMin = 1) {
+    const now = new Date();
+    return Array.from({ length: n }, (_, i) => {
+      const d = new Date(now - (n - 1 - i) * stepMin * 60000);
+      return d.toISOString().slice(11, 16);
+    });
+  }
+
+  function randArr(n, base, spread) {
+    return Array.from({ length: n }, () =>
+      +(base + (Math.random() - 0.5) * spread).toFixed(3));
+  }
+
+  /* ── Latency Chart ─────────────────────────────────────── */
+  const latencyCtx = document.getElementById('latencyChart').getContext('2d');
+  new Chart(latencyCtx, {
+    type: 'line',
+    data: {
+      labels: timeLabels(30),
+      datasets: [
+        {
+          label: 'p50', data: randArr(30, 0.12, 0.06),
+          borderColor: '#22c55e', backgroundColor: '#22c55e12',
+          borderWidth: 2, pointRadius: 0, tension: 0.4, fill: false,
+        },
+        {
+          label: 'p95', data: randArr(30, 0.45, 0.18),
+          borderColor: '#3b82f6', backgroundColor: '#3b82f612',
+          borderWidth: 2, pointRadius: 0, tension: 0.4, fill: false,
+        },
+        {
+          label: 'p99', data: randArr(30, 1.1, 0.4),
+          borderColor: '#f97316', backgroundColor: '#f9731612',
+          borderWidth: 2, pointRadius: 0, tension: 0.4, fill: false,
+          borderDash: [4, 4],
+        },
+      ],
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      interaction: { mode: 'index', intersect: false },
+      plugins: {
+        legend: { position: 'top', labels: { boxWidth: 12, usePointStyle: true } },
+        tooltip: { backgroundColor: '#111827', borderColor: '#1f2937', borderWidth: 1 },
+      },
+      scales: {
+        x: { grid: gridLines(), ticks: { maxTicksLimit: 8 } },
+        y: { grid: gridLines(), title: { display: true, text: 'seconds' } },
+      },
+    },
+  });
+
+  /* ── Token Chart ───────────────────────────────────────── */
+  const tokenCtx = document.getElementById('tokenChart').getContext('2d');
+  new Chart(tokenCtx, {
+    type: 'line',
+    data: {
+      labels: timeLabels(30),
+      datasets: [
+        {
+          label: 'input tokens/min',
+          data: randArr(30, 1400, 600),
+          borderColor: '#2563eb', backgroundColor: '#2563eb20',
+          borderWidth: 2, pointRadius: 0, tension: 0.4, fill: true,
+        },
+        {
+          label: 'output tokens/min',
+          data: randArr(30, 800, 300),
+          borderColor: '#a855f7', backgroundColor: '#a855f715',
+          borderWidth: 2, pointRadius: 0, tension: 0.4, fill: true,
+        },
+      ],
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      interaction: { mode: 'index', intersect: false },
+      plugins: {
+        legend: { position: 'top', labels: { boxWidth: 12, usePointStyle: true } },
+        tooltip: { backgroundColor: '#111827', borderColor: '#1f2937', borderWidth: 1 },
+      },
+      scales: {
+        x: { grid: gridLines(), ticks: { maxTicksLimit: 8 } },
+        y: { grid: gridLines(), title: { display: true, text: 'tokens / min' } },
+      },
+    },
+  });
+
+  /* ── Gauge (Donut) ─────────────────────────────────────── */
+  const gaugeCtx = document.getElementById('gaugeChart').getContext('2d');
+  new Chart(gaugeCtx, {
+    type: 'doughnut',
+    data: {
+      datasets: [{
+        data: [74, 26],
+        backgroundColor: ['#22c55e', '#2563eb'],
+        borderColor: ['#111827'],
+        borderWidth: 3,
+        hoverOffset: 4,
+      }],
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      cutout: '70%',
+      plugins: {
+        legend: { display: false },
+        tooltip: {
+          backgroundColor: '#111827', borderColor: '#1f2937', borderWidth: 1,
+          callbacks: { label: ctx => ` ${ctx.parsed}%` },
+        },
+      },
+    },
+  });
+
+  /* ── Refresh ───────────────────────────────────────────── */
+  function refreshData() {
+    const el = document.getElementById('last-refresh');
+    el.textContent = 'just now';
+  }
+</script>
+</body>
+</html>
