@@ -1,0 +1,108 @@
+replicaCount: 1
+
+image:
+  repository: dataguard/pipeline-sentinel
+  tag: ""  # defaults to .Chart.AppVersion
+  pullPolicy: IfNotPresent
+
+serviceAccount:
+  create: true
+  annotations: {}
+  name: ""
+
+podAnnotations:
+  prometheus.io/scrape: "true"
+  prometheus.io/port: "9090"
+  prometheus.io/path: "/metrics"
+
+podSecurityContext:
+  runAsNonRoot: true
+  fsGroup: 65532
+
+securityContext:
+  runAsUser: 65532
+  runAsGroup: 65532
+  allowPrivilegeEscalation: false
+  readOnlyRootFilesystem: true
+  capabilities:
+    drop: [ALL]
+
+service:
+  type: ClusterIP
+  port: 8080
+  metricsPort: 9090
+
+ingress:
+  enabled: false
+  className: nginx
+  annotations: {}
+  hosts:
+    - host: sentinel.example.com
+      paths:
+        - path: /
+          pathType: Prefix
+  tls: []
+
+resources:
+  requests:
+    cpu: 200m
+    memory: 256Mi
+  limits:
+    cpu: 1000m
+    memory: 1Gi
+
+autoscaling:
+  enabled: false
+  minReplicas: 1
+  maxReplicas: 3
+  targetCPUUtilizationPercentage: 80
+
+# Application config — all secrets must be provided via existingSecret
+config:
+  logLevel: INFO
+  logFormat: json
+  autoRemediationEnabled: false
+  autoRemediationMaxRisk: low
+
+# Reference an existing secret with keys:
+#   DATABASE_URL, REDIS_URL, ANTHROPIC_API_KEY (if using Anthropic)
+existingSecret: ""
+
+# Bitnami Postgres subchart — disable if using an external cluster
+postgresql:
+  enabled: true
+  auth:
+    database: sentinel
+    username: sentinel
+    existingSecret: dataguard-sentinel-postgresql
+  primary:
+    persistence:
+      size: 10Gi
+
+# Bitnami Redis subchart — disable if using an external cluster
+redis:
+  enabled: true
+  architecture: standalone
+  auth:
+    enabled: false
+  master:
+    persistence:
+      size: 2Gi
+
+livenessProbe:
+  httpGet:
+    path: /health
+    port: 8080
+  initialDelaySeconds: 15
+  periodSeconds: 30
+
+readinessProbe:
+  httpGet:
+    path: /health
+    port: 8080
+  initialDelaySeconds: 10
+  periodSeconds: 10
+
+nodeSelector: {}
+tolerations: []
+affinity: {}

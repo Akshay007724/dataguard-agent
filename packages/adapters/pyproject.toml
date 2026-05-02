@@ -1,0 +1,27 @@
+[project]
+name = "dataguard-adapters"
+version = "0.1.0"
+description = "Orchestrator adapters for DataGuard Agent: Airflow, Argo Workflows, Dagster, Prefect"
+requires-python = ">=3.12"
+license = { text = "Apache-2.0" }
+dependencies = [
+    "dataguard-core",
+    "apache-airflow-client>=2.9",
+    "hera-workflows>=5.14",
+    "httpx>=0.27",
+]
+
+[project.optional-dependencies]
+# Install only what you need to avoid pulling heavy SDKs
+airflow = ["apache-airflow-client>=2.9"]
+argo = ["hera-workflows>=5.14"]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/dataguard_adapters"]
+
+[tool.uv.sources]
+dataguard-core = { workspace = true }

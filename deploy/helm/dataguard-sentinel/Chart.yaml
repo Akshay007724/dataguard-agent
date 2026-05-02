@@ -1,0 +1,26 @@
+apiVersion: v2
+name: dataguard-sentinel
+description: Pipeline Sentinel — MCP-native agentic triage for data pipeline failures
+type: application
+version: 0.1.0
+appVersion: "0.1.0"
+keywords:
+  - data-pipelines
+  - observability
+  - mcp
+  - ai-agent
+home: https://github.com/dataguard-agent/dataguard-agent
+sources:
+  - https://github.com/dataguard-agent/dataguard-agent
+maintainers:
+  - name: DataGuard Agent Contributors
+    url: https://github.com/dataguard-agent/dataguard-agent
+dependencies:
+  - name: postgresql
+    version: "15.x.x"
+    repository: https://charts.bitnami.com/bitnami
+    condition: postgresql.enabled
+  - name: redis
+    version: "19.x.x"
+    repository: https://charts.bitnami.com/bitnami
+    condition: redis.enabled

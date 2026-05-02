@@ -1,0 +1,13 @@
+# Marquez config for local demo — uses in-memory store
+# For production, swap to a real Postgres backend
+db:
+  driverClass: org.h2.Driver
+  url: jdbc:h2:mem:marquez;DB_CLOSE_DELAY=-1
+  user: marquez
+  password: marquez
+
+logging:
+  level: WARN
+
+migrate:
+  runOnStartup: true

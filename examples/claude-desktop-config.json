@@ -1,0 +1,37 @@
+{
+  "_comment": "Drop this into ~/Library/Application Support/Claude/claude_desktop_config.json (macOS) or %APPDATA%\\Claude\\claude_desktop_config.json (Windows)",
+  "mcpServers": {
+    "pipeline-sentinel": {
+      "_options": [
+        "Option A: Docker (recommended for demo — run 'make demo' first)",
+        "Option B: Direct uv run (requires local install)",
+        "Option C: Remote HTTP server"
+      ],
+      "_active": "Option A",
+
+      "command": "docker",
+      "args": ["exec", "-i", "dataguard-sentinel", "pipeline-sentinel", "mcp"],
+      "env": {}
+    }
+  },
+  "_option_b": {
+    "pipeline-sentinel": {
+      "command": "uv",
+      "args": ["run", "--project", "/path/to/dataguard-agent", "pipeline-sentinel", "mcp"],
+      "env": {
+        "DATABASE_URL": "postgresql+asyncpg://sentinel:sentinel@localhost:5432/sentinel",
+        "REDIS_URL": "redis://localhost:6379/0",
+        "AIRFLOW_BASE_URL": "http://localhost:8888",
+        "AIRFLOW_USERNAME": "admin",
+        "AIRFLOW_PASSWORD": "admin",
+        "ANTHROPIC_API_KEY": "sk-ant-..."
+      }
+    }
+  },
+  "_cursor_mcp_json": {
+    "pipeline-sentinel": {
+      "command": "docker",
+      "args": ["exec", "-i", "dataguard-sentinel", "pipeline-sentinel", "mcp"]
+    }
+  }
+}

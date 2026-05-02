@@ -1,0 +1,44 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: pipeline-sentinel
+  namespace: argocd
+  labels:
+    app.kubernetes.io/name: pipeline-sentinel
+    app.kubernetes.io/component: data-observability
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  project: default
+  source:
+    repoURL: https://github.com/dataguard-agent/dataguard-agent
+    targetRevision: main
+    path: deploy/helm/dataguard-sentinel
+    helm:
+      releaseName: pipeline-sentinel
+      valuesFiles:
+        - values.yaml
+        # values-production.yaml is gitignored — contains env-specific overrides
+        # and references to externally managed secrets
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: dataguard
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
+      - ServerSideApply=true
+      - PrunePropagationPolicy=foreground
+    retry:
+      limit: 3
+      backoff:
+        duration: 30s
+        maxDuration: 5m
+        factor: 2
+  ignoreDifferences:
+    - group: apps
+      kind: Deployment
+      jsonPointers:
+        - /spec/replicas  # allow HPA to manage replicas

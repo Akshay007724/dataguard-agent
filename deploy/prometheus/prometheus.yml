@@ -1,0 +1,22 @@
+global:
+  scrape_interval: 15s
+  evaluation_interval: 15s
+
+scrape_configs:
+  - job_name: pipeline-sentinel
+    static_configs:
+      - targets: [sentinel:9090]
+    metrics_path: /metrics
+
+  - job_name: airflow
+    static_configs:
+      - targets: [airflow-webserver:8080]
+    metrics_path: /admin/metrics
+
+  - job_name: postgres
+    static_configs:
+      - targets: [postgres-exporter:9187]
+
+  - job_name: redis
+    static_configs:
+      - targets: [redis-exporter:9121]
