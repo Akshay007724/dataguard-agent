@@ -1,724 +1,605 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8"/>
-  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>DataGuard — Pipeline Sentinel</title>
-  <link rel="preconnect" href="https://fonts.googleapis.com"/>
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
-  <link href="https://fonts.googleapis.com/css2?family=Fira+Code:wght@400;500;600;700&family=Fira+Sans:wght@300;400;500;600;700&display=swap" rel="stylesheet"/>
-  <script src="https://cdn.jsdelivr.net/npm/three@0.165.0/build/three.min.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.3/dist/chart.umd.min.js"></script>
-  <style>
-    *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
-    :root{
-      --bg:#030712;
-      --surface:rgba(13,17,23,.75);
-      --card:rgba(17,24,39,.7);
-      --card-hover:rgba(22,31,46,.85);
-      --border:rgba(31,41,55,.8);
-      --border-glow:rgba(37,99,235,.35);
-      --primary:#2563eb;
-      --primary-glow:rgba(37,99,235,.25);
-      --blue:#3b82f6;
-      --cyan:#06b6d4;
-      --green:#22c55e;
-      --yellow:#eab308;
-      --red:#ef4444;
-      --orange:#f97316;
-      --purple:#a855f7;
-      --text:#f1f5f9;
-      --muted:#64748b;
-      --dim:#94a3b8;
-      --font:'Fira Sans',system-ui,sans-serif;
-      --mono:'Fira Code','Cascadia Code',monospace;
-      --r:10px;--rl:14px;
-    }
-    html{font-size:16px;scroll-behavior:smooth}
-    body{font-family:var(--font);background:var(--bg);color:var(--text);overflow-x:hidden;line-height:1.6}
-    ::-webkit-scrollbar{width:6px}::-webkit-scrollbar-track{background:var(--bg)}::-webkit-scrollbar-thumb{background:#1f2937;border-radius:3px}
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>DataGuard — Pipeline Sentinel</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
-    /* ── Canvas BG ─ */
-    #bg{position:fixed;inset:0;z-index:0;pointer-events:none}
-    .overlay{position:fixed;inset:0;z-index:1;background:radial-gradient(ellipse 80% 60% at 50% -10%,rgba(37,99,235,.12) 0%,transparent 70%),radial-gradient(ellipse 50% 40% at 90% 80%,rgba(168,85,247,.07) 0%,transparent 60%);pointer-events:none}
-
-    /* ── Layout ─ */
-    .site{position:relative;z-index:2}
-
-    /* ── Nav ─ */
-    nav{
-      position:fixed;top:0;left:0;right:0;z-index:100;
-      backdrop-filter:blur(20px) saturate(180%);
-      -webkit-backdrop-filter:blur(20px) saturate(180%);
-      background:rgba(3,7,18,.6);
-      border-bottom:1px solid var(--border);
-      padding:0 40px;
-      display:flex;align-items:center;justify-content:space-between;
-      height:60px;
-    }
-    .nav-brand{display:flex;align-items:center;gap:10px;text-decoration:none}
-    .nav-logo{
-      width:34px;height:34px;background:var(--primary);border-radius:8px;
-      display:flex;align-items:center;justify-content:center;
-      box-shadow:0 0 20px var(--primary-glow);
-      transition:box-shadow 200ms;
-    }
-    .nav-logo:hover{box-shadow:0 0 30px rgba(37,99,235,.5)}
-    .nav-logo svg{width:18px;height:18px;color:#fff}
-    .nav-name{font-family:var(--mono);font-size:15px;font-weight:600;color:var(--text)}
-    .nav-links{display:flex;align-items:center;gap:4px}
-    .nav-link{padding:6px 14px;border-radius:var(--r);font-size:13px;font-weight:500;color:var(--dim);text-decoration:none;transition:color 150ms,background 150ms}
-    .nav-link:hover{color:var(--text);background:rgba(255,255,255,.05)}
-    .nav-link.active{color:var(--blue)}
-    .nav-cta{
-      display:flex;align-items:center;gap:8px;
-      padding:8px 18px;border-radius:var(--r);
-      background:var(--primary);color:#fff;font-size:13px;font-weight:600;
-      text-decoration:none;transition:background 150ms,box-shadow 150ms;
-      box-shadow:0 0 0 1px rgba(37,99,235,.5);
-    }
-    .nav-cta:hover{background:#1d4ed8;box-shadow:0 0 20px rgba(37,99,235,.4)}
-
-    /* ── Hero ─ */
-    .hero{
-      padding:140px 40px 80px;
-      display:grid;grid-template-columns:1fr 1fr;
-      gap:60px;align-items:center;max-width:1300px;margin:0 auto;
-    }
-    .hero-badge{
-      display:inline-flex;align-items:center;gap:8px;
-      background:rgba(37,99,235,.12);border:1px solid rgba(37,99,235,.3);
-      padding:5px 14px;border-radius:20px;font-size:12px;font-weight:600;
-      color:var(--blue);font-family:var(--mono);margin-bottom:24px;
-      text-transform:uppercase;letter-spacing:.05em;
-    }
-    .badge-dot{width:6px;height:6px;border-radius:50%;background:var(--green);animation:pulse 2s infinite}
-    @keyframes pulse{0%,100%{opacity:1}50%{opacity:.4}}
-    .hero h1{
-      font-size:clamp(36px,4.5vw,62px);font-weight:700;line-height:1.08;
-      letter-spacing:-.02em;margin-bottom:20px;
-    }
-    .hero h1 .accent{
-      background:linear-gradient(135deg,var(--blue) 0%,var(--cyan) 50%,var(--purple) 100%);
-      -webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;
-    }
-    .hero-desc{font-size:17px;color:var(--dim);max-width:520px;line-height:1.7;margin-bottom:36px}
-    .hero-actions{display:flex;align-items:center;gap:12px;flex-wrap:wrap}
-    .btn-hero{
-      display:inline-flex;align-items:center;gap:8px;
-      padding:12px 24px;border-radius:var(--r);font-size:14px;font-weight:600;
-      text-decoration:none;transition:all 200ms;cursor:pointer;border:none;
-    }
-    .btn-hero.primary{
-      background:var(--primary);color:#fff;
-      box-shadow:0 0 30px rgba(37,99,235,.35),0 4px 12px rgba(0,0,0,.4);
-    }
-    .btn-hero.primary:hover{background:#1d4ed8;box-shadow:0 0 40px rgba(37,99,235,.5),0 8px 24px rgba(0,0,0,.5);transform:translateY(-2px)}
-    .btn-hero.ghost{background:rgba(255,255,255,.05);color:var(--dim);border:1px solid var(--border)}
-    .btn-hero.ghost:hover{background:rgba(255,255,255,.1);color:var(--text);transform:translateY(-2px)}
-    .btn-hero svg{width:16px;height:16px}
-
-    .hero-stats{display:flex;gap:32px;margin-top:40px;padding-top:28px;border-top:1px solid var(--border)}
-    .stat-item{text-align:center}
-    .stat-val{font-family:var(--mono);font-size:24px;font-weight:700;color:var(--text);display:block}
-    .stat-lbl{font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.08em;margin-top:2px}
-
-    /* ── 3D Card (hero right) ─ */
-    .hero-visual{perspective:1200px;display:flex;align-items:center;justify-content:center}
-    .card-3d{
-      background:var(--card);
-      backdrop-filter:blur(24px) saturate(200%);
-      -webkit-backdrop-filter:blur(24px) saturate(200%);
-      border:1px solid var(--border);
-      border-radius:20px;
-      padding:24px;
-      width:100%;max-width:480px;
-      transform:rotateY(-8deg) rotateX(4deg);
-      transform-style:preserve-3d;
-      box-shadow:
-        0 0 0 1px rgba(37,99,235,.15),
-        0 24px 60px rgba(0,0,0,.6),
-        0 0 80px rgba(37,99,235,.1),
-        inset 0 1px 0 rgba(255,255,255,.06);
-      transition:transform 400ms cubic-bezier(.23,1,.32,1);
-    }
-    .card-3d:hover{transform:rotateY(-3deg) rotateX(2deg) translateZ(10px)}
-    .card-3d-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:16px}
-    .card-3d-title{font-size:13px;font-weight:600;color:var(--text)}
-    .card-3d-badge{
-      font-family:var(--mono);font-size:10px;
-      background:rgba(34,197,94,.12);border:1px solid rgba(34,197,94,.3);
-      color:var(--green);padding:3px 8px;border-radius:20px;
-      display:flex;align-items:center;gap:5px;
-    }
-    .card-3d-badge::before{content:'';width:5px;height:5px;border-radius:50%;background:var(--green);animation:pulse 2s infinite}
-
-    .mini-chart-wrap{height:80px;margin-bottom:16px}
-    .pipeline-rows{display:flex;flex-direction:column;gap:8px}
-    .pipeline-row{
-      display:flex;align-items:center;justify-content:space-between;
-      padding:8px 12px;background:rgba(255,255,255,.03);
-      border:1px solid rgba(255,255,255,.05);border-radius:8px;
-      font-size:12px;
-    }
-    .pipeline-row-name{font-family:var(--mono);color:var(--dim)}
-    .pill{padding:2px 8px;border-radius:10px;font-size:10px;font-weight:600;font-family:var(--mono)}
-    .pill.ok{background:rgba(34,197,94,.12);color:var(--green);border:1px solid rgba(34,197,94,.25)}
-    .pill.err{background:rgba(239,68,68,.12);color:var(--red);border:1px solid rgba(239,68,68,.25)}
-    .pill.warn{background:rgba(234,179,8,.12);color:var(--yellow);border:1px solid rgba(234,179,8,.25)}
-    .pill.run{background:rgba(59,130,246,.12);color:var(--blue);border:1px solid rgba(59,130,246,.25)}
-
-    /* ── Section ─ */
-    .section{padding:80px 40px;max-width:1300px;margin:0 auto}
-    .section-label{font-family:var(--mono);font-size:12px;font-weight:600;color:var(--blue);text-transform:uppercase;letter-spacing:.1em;margin-bottom:12px}
-    .section-title{font-size:clamp(28px,3vw,42px);font-weight:700;letter-spacing:-.02em;margin-bottom:14px}
-    .section-desc{font-size:16px;color:var(--dim);max-width:600px;line-height:1.7;margin-bottom:48px}
-
-    /* ── Feature cards (3D tilt) ─ */
-    .features-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:20px}
-    .feat-card{
-      background:var(--card);
-      backdrop-filter:blur(16px);-webkit-backdrop-filter:blur(16px);
-      border:1px solid var(--border);border-radius:var(--rl);
-      padding:28px;
-      transition:transform 300ms cubic-bezier(.23,1,.32,1),border-color 300ms,box-shadow 300ms;
-      transform-style:preserve-3d;cursor:default;
-      position:relative;overflow:hidden;
-    }
-    .feat-card::before{
-      content:'';position:absolute;inset:0;
-      background:radial-gradient(circle at var(--mx,50%) var(--my,50%),rgba(37,99,235,.08) 0%,transparent 60%);
-      opacity:0;transition:opacity 300ms;pointer-events:none;
-    }
-    .feat-card:hover::before{opacity:1}
-    .feat-card:hover{
-      border-color:rgba(37,99,235,.4);
-      box-shadow:0 0 0 1px rgba(37,99,235,.2),0 20px 40px rgba(0,0,0,.5),0 0 60px rgba(37,99,235,.08);
-    }
-    .feat-icon{
-      width:44px;height:44px;border-radius:var(--r);margin-bottom:18px;
-      display:flex;align-items:center;justify-content:center;
-    }
-    .feat-icon svg{width:22px;height:22px}
-    .feat-icon.blue{background:rgba(37,99,235,.15);color:var(--blue)}
-    .feat-icon.cyan{background:rgba(6,182,212,.15);color:var(--cyan)}
-    .feat-icon.green{background:rgba(34,197,94,.15);color:var(--green)}
-    .feat-icon.orange{background:rgba(249,115,22,.15);color:var(--orange)}
-    .feat-icon.purple{background:rgba(168,85,247,.15);color:var(--purple)}
-    .feat-icon.yellow{background:rgba(234,179,8,.15);color:var(--yellow)}
-    .feat-title{font-size:16px;font-weight:600;margin-bottom:8px}
-    .feat-desc{font-size:13px;color:var(--dim);line-height:1.65}
-
-    /* ── Dashboard section ─ */
-    .dash-wrap{
-      background:var(--card);
-      backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px);
-      border:1px solid var(--border);border-radius:20px;
-      overflow:hidden;
-      box-shadow:0 0 0 1px rgba(37,99,235,.1),0 40px 80px rgba(0,0,0,.5),0 0 100px rgba(37,99,235,.06);
-    }
-    .dash-topbar{
-      background:rgba(13,17,23,.6);border-bottom:1px solid var(--border);
-      padding:14px 24px;display:flex;align-items:center;gap:10px;
-    }
-    .window-dot{width:12px;height:12px;border-radius:50%}
-    .window-dot.r{background:#ef4444}.window-dot.y{background:#eab308}.window-dot.g{background:#22c55e}
-    .dash-url{font-family:var(--mono);font-size:12px;color:var(--muted);margin-left:12px}
-    .dash-body{padding:24px}
-
-    .kpi-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-bottom:20px}
-    .kpi{
-      background:rgba(255,255,255,.03);border:1px solid var(--border);border-radius:var(--r);
-      padding:16px;transition:border-color 200ms;
-    }
-    .kpi:hover{border-color:rgba(37,99,235,.35)}
-    .kpi-lbl{font-size:11px;font-weight:500;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;margin-bottom:10px}
-    .kpi-val{font-family:var(--mono);font-size:28px;font-weight:700;line-height:1}
-    .kpi-val.g{color:var(--green)}.kpi-val.r{color:var(--red)}.kpi-val.y{color:var(--yellow)}.kpi-val.b{color:var(--blue)}
-    .kpi-sub{font-size:11px;color:var(--muted);margin-top:6px}
-
-    .charts-row{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:20px}
-    .chart-box{background:rgba(255,255,255,.03);border:1px solid var(--border);border-radius:var(--r);padding:16px}
-    .chart-box-title{font-size:12px;font-weight:600;color:var(--dim);margin-bottom:4px}
-    .chart-box-sub{font-size:11px;color:var(--muted);margin-bottom:12px}
-    .chart-h{position:relative;height:160px}
-
-    .incidents{display:flex;flex-direction:column;gap:8px}
-    .inc-item{
-      display:flex;align-items:flex-start;gap:12px;
-      padding:12px;background:rgba(255,255,255,.02);border:1px solid var(--border);
-      border-radius:var(--r);transition:background 150ms;
-    }
-    .inc-item:hover{background:rgba(255,255,255,.04)}
-    .inc-dot{width:8px;height:8px;border-radius:50%;flex-shrink:0;margin-top:5px}
-    .inc-dot.c{background:var(--red);box-shadow:0 0 8px var(--red)}
-    .inc-dot.h{background:var(--orange)}
-    .inc-dot.m{background:var(--yellow)}
-    .inc-title{font-size:13px;font-weight:500;margin-bottom:2px}
-    .inc-meta{font-size:11px;color:var(--muted);font-family:var(--mono)}
-
-    /* ── How it works ─ */
-    .steps{display:grid;grid-template-columns:repeat(4,1fr);gap:0;position:relative;margin-top:20px}
-    .steps::before{
-      content:'';position:absolute;top:28px;left:12.5%;right:12.5%;
-      height:1px;background:linear-gradient(90deg,transparent,var(--border),var(--primary-glow),var(--border),transparent);
-    }
-    .step{text-align:center;padding:0 16px}
-    .step-num{
-      width:56px;height:56px;border-radius:50%;margin:0 auto 16px;
-      display:flex;align-items:center;justify-content:center;position:relative;
-      background:var(--card);border:1px solid var(--border);
-      font-family:var(--mono);font-size:18px;font-weight:700;color:var(--blue);
-      box-shadow:0 0 20px rgba(37,99,235,.15);
-    }
-    .step-title{font-size:14px;font-weight:600;margin-bottom:6px}
-    .step-desc{font-size:12px;color:var(--dim);line-height:1.6}
-
-    /* ── Footer ─ */
-    footer{
-      border-top:1px solid var(--border);
-      padding:32px 40px;display:flex;align-items:center;justify-content:space-between;
-      background:rgba(13,17,23,.4);backdrop-filter:blur(16px);
-    }
-    .footer-brand{font-family:var(--mono);font-size:13px;color:var(--muted)}
-    .footer-links{display:flex;gap:20px}
-    .footer-link{font-size:13px;color:var(--muted);text-decoration:none;transition:color 150ms}
-    .footer-link:hover{color:var(--text)}
-
-    /* ── Responsive ─ */
-    @media(max-width:1024px){
-      .hero{grid-template-columns:1fr;padding:120px 24px 60px}
-      .hero-visual{display:none}
-      .features-grid{grid-template-columns:repeat(2,1fr)}
-      .steps{grid-template-columns:repeat(2,1fr);gap:24px}
-      .steps::before{display:none}
-      .kpi-grid{grid-template-columns:repeat(2,1fr)}
-      .charts-row{grid-template-columns:1fr}
-    }
-    @media(max-width:640px){
-      nav{padding:0 16px}.section{padding:60px 16px}
-      .features-grid{grid-template-columns:1fr}
-      .kpi-grid{grid-template-columns:repeat(2,1fr)}
-      .hero{padding:110px 16px 40px}
-      footer{flex-direction:column;gap:16px;text-align:center}
-    }
-  </style>
-</head>
-<body>
-<canvas id="bg" aria-hidden="true"></canvas>
-<div class="overlay" aria-hidden="true"></div>
-
-<div class="site">
-
-<!-- ── Nav ─────────────────────────────────────────────── -->
-<nav role="navigation" aria-label="Main navigation">
-  <a href="#" class="nav-brand" aria-label="DataGuard home">
-    <div class="nav-logo" aria-hidden="true">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
-    </div>
-    <span class="nav-name">DataGuard</span>
-  </a>
-  <div class="nav-links" role="list">
-    <a href="#features" class="nav-link" role="listitem">Features</a>
-    <a href="#dashboard" class="nav-link" role="listitem">Dashboard</a>
-    <a href="#how-it-works" class="nav-link" role="listitem">How it works</a>
-    <a href="https://github.com/Akshay007724/dataguard-agent" class="nav-link" role="listitem" target="_blank" rel="noopener">GitHub</a>
-  </div>
-  <a href="dashboard/index.html" class="nav-cta" aria-label="Open live dashboard">
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="width:14px;height:14px"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>
-    Live Dashboard
-  </a>
-</nav>
-
-<!-- ── Hero ─────────────────────────────────────────────── -->
-<section class="hero" aria-labelledby="hero-heading">
-  <div>
-    <div class="hero-badge">
-      <span class="badge-dot" aria-hidden="true"></span>
-      MCP-Native · Agentic · Open Source
-    </div>
-    <h1 id="hero-heading">
-      Autonomous triage for<br/>
-      <span class="accent">data pipelines</span>
-    </h1>
-    <p class="hero-desc">
-      DataGuard watches your Airflow and Argo pipelines 24/7. When something breaks,
-      the AI agent diagnoses root cause, proposes remediation, and files incidents —
-      all before your on-call engineer opens Slack.
-    </p>
-    <div class="hero-actions">
-      <a href="https://github.com/Akshay007724/dataguard-agent" class="btn-hero primary" target="_blank" rel="noopener" aria-label="View on GitHub">
-        <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 0C5.37 0 0 5.37 0 12c0 5.31 3.435 9.795 8.205 11.385.6.105.825-.255.825-.57 0-.285-.015-1.23-.015-2.235-3.015.555-3.795-.735-4.035-1.41-.135-.345-.72-1.41-1.23-1.695-.42-.225-1.02-.78-.015-.795.945-.015 1.62.87 1.845 1.23 1.08 1.815 2.805 1.305 3.495.99.105-.78.42-1.305.765-1.605-2.67-.3-5.46-1.335-5.46-5.925 0-1.305.465-2.385 1.23-3.225-.12-.3-.54-1.53.12-3.18 0 0 1.005-.315 3.3 1.23.96-.27 1.98-.405 3-.405s2.04.135 3 .405c2.295-1.56 3.3-1.23 3.3-1.23.66 1.65.24 2.88.12 3.18.765.84 1.23 1.905 1.23 3.225 0 4.605-2.805 5.625-5.475 5.925.435.375.81 1.095.81 2.22 0 1.605-.015 2.895-.015 3.3 0 .315.225.69.825.57A12.02 12.02 0 0 0 24 12c0-6.63-5.37-12-12-12z"/></svg>
-        View on GitHub
-      </a>
-      <a href="dashboard/index.html" class="btn-hero ghost" aria-label="Open live dashboard demo">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polygon points="5 3 19 12 5 21 5 3"/></svg>
-        Live Demo
-      </a>
-    </div>
-    <div class="hero-stats" role="list" aria-label="Key statistics">
-      <div class="stat-item" role="listitem">
-        <span class="stat-val">87</span>
-        <div class="stat-lbl">Unit tests passing</div>
-      </div>
-      <div class="stat-item" role="listitem">
-        <span class="stat-val">74%</span>
-        <div class="stat-lbl">LLM bypass rate</div>
-      </div>
-      <div class="stat-item" role="listitem">
-        <span class="stat-val">10</span>
-        <div class="stat-lbl">MCP tools</div>
-      </div>
-      <div class="stat-item" role="listitem">
-        <span class="stat-val">&lt;2s</span>
-        <div class="stat-lbl">Mean triage time</div>
-      </div>
-    </div>
-  </div>
-
-  <!-- 3D floating card -->
-  <div class="hero-visual" aria-hidden="true">
-    <div class="card-3d" id="heroCard">
-      <div class="card-3d-header">
-        <span class="card-3d-title">Pipeline Sentinel · Live</span>
-        <span class="card-3d-badge">sentinel connected</span>
-      </div>
-      <div class="mini-chart-wrap">
-        <canvas id="heroChart"></canvas>
-      </div>
-      <div class="pipeline-rows">
-        <div class="pipeline-row">
-          <span class="pipeline-row-name">customer_ltv_daily</span>
-          <span class="pill err">FAILED</span>
-        </div>
-        <div class="pipeline-row">
-          <span class="pipeline-row-name">ingest_raw_events</span>
-          <span class="pill err">FAILED</span>
-        </div>
-        <div class="pipeline-row">
-          <span class="pipeline-row-name">ml_feature_pipeline</span>
-          <span class="pill warn">DEGRADED</span>
-        </div>
-        <div class="pipeline-row">
-          <span class="pipeline-row-name">dbt_transform_prod</span>
-          <span class="pill ok">HEALTHY</span>
-        </div>
-        <div class="pipeline-row">
-          <span class="pipeline-row-name">segment_export_daily</span>
-          <span class="pill run">RUNNING</span>
-        </div>
-      </div>
-    </div>
-  </div>
-</section>
-
-<!-- ── Features ──────────────────────────────────────────── -->
-<section class="section" id="features" aria-labelledby="features-heading">
-  <div class="section-label">Capabilities</div>
-  <h2 class="section-title" id="features-heading">Everything your pipelines need</h2>
-  <p class="section-desc">From deterministic pattern matching to LLM-powered root cause analysis — with a 5-gate safety system before any remediation is touched.</p>
-
-  <div class="features-grid" id="featuresGrid">
-    <div class="feat-card" data-tilt>
-      <div class="feat-icon blue">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
-      </div>
-      <div class="feat-title">Hybrid Diagnosis</div>
-      <div class="feat-desc">7 deterministic regex matchers run first. LLM only invoked for novel failures — reducing latency and cost by 74% on average.</div>
-    </div>
-    <div class="feat-card" data-tilt>
-      <div class="feat-icon cyan">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
-      </div>
-      <div class="feat-title">Real-time Watchdog</div>
-      <div class="feat-desc">Polls orchestrators every 5 minutes. Redis debounce prevents duplicate triage. Instantly escalates critical failures.</div>
-    </div>
-    <div class="feat-card" data-tilt>
-      <div class="feat-icon green">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
-      </div>
-      <div class="feat-title">5-Gate Remediation</div>
-      <div class="feat-desc">confirm + approver_id + plan exists + auto_remediation_enabled + risk level. All five gates must pass. No silent changes.</div>
-    </div>
-    <div class="feat-card" data-tilt>
-      <div class="feat-icon purple">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M12 1v4M12 19v4M4.22 4.22l2.83 2.83M16.95 16.95l2.83 2.83M1 12h4M19 12h4M4.22 19.78l2.83-2.83M16.95 7.05l2.83-2.83"/></svg>
-      </div>
-      <div class="feat-title">MCP Native</div>
-      <div class="feat-desc">10 MCP tools — plug directly into Claude Desktop. list_pipelines, diagnose_failure, propose_remediation, file_incident and more.</div>
-    </div>
-    <div class="feat-card" data-tilt>
-      <div class="feat-icon orange">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/></svg>
-      </div>
-      <div class="feat-title">OpenLineage Tracing</div>
-      <div class="feat-desc">Traverse upstream/downstream dependency graphs via Marquez. Understand blast radius before proposing any fix.</div>
-    </div>
-    <div class="feat-card" data-tilt>
-      <div class="feat-icon yellow">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>
-      </div>
-      <div class="feat-title">Full Observability</div>
-      <div class="feat-desc">Prometheus metrics, structured logs via structlog, OpenTelemetry traces, and a pre-built Grafana dashboard included.</div>
-    </div>
-  </div>
-</section>
-
-<!-- ── Dashboard Preview ──────────────────────────────────── -->
-<section class="section" id="dashboard" aria-labelledby="dashboard-heading">
-  <div class="section-label">Dashboard</div>
-  <h2 class="section-title" id="dashboard-heading">See everything at a glance</h2>
-  <p class="section-desc">Pipeline health, incident feed, MCP tool latency, and LLM token usage — all in one view.</p>
-
-  <div class="dash-wrap">
-    <div class="dash-topbar" aria-hidden="true">
-      <div class="window-dot r"></div><div class="window-dot y"></div><div class="window-dot g"></div>
-      <span class="dash-url">dataguard.io/dashboard — Pipeline Sentinel</span>
-    </div>
-    <div class="dash-body">
-      <div class="kpi-grid" role="list" aria-label="Key metrics">
-        <div class="kpi" role="listitem"><div class="kpi-lbl">Healthy</div><div class="kpi-val g">18</div><div class="kpi-sub">of 24 total</div></div>
-        <div class="kpi" role="listitem"><div class="kpi-lbl">Failed</div><div class="kpi-val r">3</div><div class="kpi-sub">+1 last hour</div></div>
-        <div class="kpi" role="listitem"><div class="kpi-lbl">Degraded</div><div class="kpi-val y">3</div><div class="kpi-sub">−1 since poll</div></div>
-        <div class="kpi" role="listitem"><div class="kpi-lbl">Incidents</div><div class="kpi-val b">5</div><div class="kpi-sub">2 critical</div></div>
-      </div>
-      <div class="charts-row">
-        <div class="chart-box">
-          <div class="chart-box-title">MCP Tool Latency</div>
-          <div class="chart-box-sub">p50 / p95 / p99 — last 30 min</div>
-          <div class="chart-h"><canvas id="latencyChart" aria-label="MCP tool latency line chart"></canvas></div>
-        </div>
-        <div class="chart-box">
-          <div class="chart-box-title">LLM Token Usage</div>
-          <div class="chart-box-sub">Input vs output tokens/min</div>
-          <div class="chart-h"><canvas id="tokenChart" aria-label="LLM token usage area chart"></canvas></div>
-        </div>
-      </div>
-      <div class="incidents" role="list" aria-label="Recent incidents">
-        <div class="inc-item" role="listitem"><div class="inc-dot c" aria-hidden="true"></div><div><div class="inc-title">Schema drift — customer_ltv_daily</div><div class="inc-meta">INC-0047 · CRITICAL · 2m ago · confidence 0.97</div></div></div>
-        <div class="inc-item" role="listitem"><div class="inc-dot h" aria-hidden="true"></div><div><div class="inc-title">ECONNREFUSED — ingest_raw_events</div><div class="inc-meta">INC-0046 · HIGH · 14m ago · confidence 0.92</div></div></div>
-        <div class="inc-item" role="listitem"><div class="inc-dot h" aria-hidden="true"></div><div><div class="inc-title">OOMKilled — ml_feature_pipeline</div><div class="inc-meta">INC-0045 · HIGH · 31m ago · confidence 0.99</div></div></div>
-      </div>
-    </div>
-  </div>
-</section>
-
-<!-- ── How it works ───────────────────────────────────────── -->
-<section class="section" id="how-it-works" aria-labelledby="how-heading">
-  <div class="section-label">Workflow</div>
-  <h2 class="section-title" id="how-heading">How DataGuard works</h2>
-  <div class="steps" role="list">
-    <div class="step" role="listitem">
-      <div class="step-num" aria-hidden="true">1</div>
-      <div class="step-title">Watchdog polls</div>
-      <div class="step-desc">Checks Airflow & Argo every 5 min. Redis debounce prevents duplicate triage runs.</div>
-    </div>
-    <div class="step" role="listitem">
-      <div class="step-num" aria-hidden="true">2</div>
-      <div class="step-title">Pattern match</div>
-      <div class="step-desc">7 regex matchers for OOM, timeouts, schema drift, key errors. LLM skipped if match found.</div>
-    </div>
-    <div class="step" role="listitem">
-      <div class="step-num" aria-hidden="true">3</div>
-      <div class="step-title">TriageAgent runs</div>
-      <div class="step-desc">Agentic loop: get logs → trace lineage → diagnose → propose remediation → file incident.</div>
-    </div>
-    <div class="step" role="listitem">
-      <div class="step-num" aria-hidden="true">4</div>
-      <div class="step-title">Human approves</div>
-      <div class="step-desc">5-gate safety check. execute_remediation only runs after explicit human sign-off.</div>
-    </div>
-  </div>
-</section>
-
-<!-- ── Footer ────────────────────────────────────────────── -->
-<footer role="contentinfo">
-  <div class="footer-brand">dataguard-agent · Apache 2.0 · v0.1.0</div>
-  <div class="footer-links">
-    <a href="https://github.com/Akshay007724/dataguard-agent" class="footer-link" target="_blank" rel="noopener">GitHub</a>
-    <a href="dashboard/index.html" class="footer-link">Dashboard</a>
-    <a href="https://github.com/Akshay007724/dataguard-agent/blob/main/ARCHITECTURE.md" class="footer-link" target="_blank" rel="noopener">Architecture</a>
-  </div>
-</footer>
-
-</div><!-- /site -->
-
-<script>
-/* ── Three.js animated node graph ─────────────────────── */
-(function(){
-  const canvas = document.getElementById('bg');
-  const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: true });
-  renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
-  renderer.setSize(window.innerWidth, window.innerHeight);
-
-  const scene = new THREE.Scene();
-  const camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 0.1, 1000);
-  camera.position.set(0, 0, 28);
-
-  /* Nodes */
-  const NODE_COUNT = 60;
-  const nodes = [];
-  const nodeGeo = new THREE.SphereGeometry(0.18, 8, 8);
-  const colors = [0x2563eb, 0x3b82f6, 0x06b6d4, 0xa855f7, 0x22c55e];
-
-  for (let i = 0; i < NODE_COUNT; i++) {
-    const mat = new THREE.MeshBasicMaterial({ color: colors[Math.floor(Math.random() * colors.length)], transparent: true, opacity: 0.7 });
-    const mesh = new THREE.Mesh(nodeGeo, mat);
-    mesh.position.set(
-      (Math.random() - .5) * 50,
-      (Math.random() - .5) * 30,
-      (Math.random() - .5) * 20
-    );
-    mesh.userData.vel = new THREE.Vector3(
-      (Math.random() - .5) * 0.018,
-      (Math.random() - .5) * 0.012,
-      (Math.random() - .5) * 0.008
-    );
-    scene.add(mesh);
-    nodes.push(mesh);
+  :root {
+    --bg: #000;
+    --bg1: #0a0a0f;
+    --bg2: #111118;
+    --bg3: #1a1a24;
+    --surface: rgba(255,255,255,0.04);
+    --border: rgba(255,255,255,0.08);
+    --border2: rgba(255,255,255,0.14);
+    --text: #f5f5f7;
+    --text2: #a1a1aa;
+    --text3: #71717a;
+    --accent: #3b82f6;
+    --accent2: #6366f1;
+    --green: #22c55e;
+    --yellow: #eab308;
+    --red: #ef4444;
+    --spring: cubic-bezier(0.34,1.56,0.64,1);
+    --ease: cubic-bezier(0.25,0.46,0.45,0.94);
+    --r: 16px;
+    --r2: 24px;
   }
 
-  /* Edges */
-  const MAX_DIST = 9;
-  const edgeMat = new THREE.LineBasicMaterial({ color: 0x2563eb, transparent: true, opacity: 0.12 });
-  const edgeGroup = new THREE.Group();
-  scene.add(edgeGroup);
+  html { scroll-behavior: smooth; }
 
-  function rebuildEdges() {
-    while (edgeGroup.children.length) edgeGroup.remove(edgeGroup.children[0]);
+  body {
+    font-family: 'Inter', -apple-system, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    overflow-x: hidden;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  #bg-canvas {
+    position: fixed; inset: 0; z-index: 0; pointer-events: none;
+  }
+
+  nav {
+    position: fixed; top: 0; left: 0; right: 0; z-index: 100;
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 0 40px; height: 64px;
+    background: rgba(0,0,0,0.6);
+    backdrop-filter: blur(20px) saturate(180%);
+    border-bottom: 1px solid var(--border);
+  }
+
+  .nav-logo { display: flex; align-items: center; gap: 10px; font-size: 16px; font-weight: 600; letter-spacing: -0.3px; }
+  .nav-logo-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--accent); box-shadow: 0 0 12px var(--accent); animation: pulse 2s infinite; }
+
+  @keyframes pulse { 0%,100% { opacity:1; transform:scale(1); } 50% { opacity:.6; transform:scale(1.3); } }
+
+  .nav-links { display: flex; gap: 32px; }
+  .nav-links a { font-size: 14px; font-weight: 500; color: var(--text2); text-decoration: none; transition: color .2s; }
+  .nav-links a:hover { color: var(--text); }
+  .nav-cta { display: flex; gap: 12px; align-items: center; }
+
+  .btn {
+    display: inline-flex; align-items: center; gap: 8px;
+    padding: 8px 20px; border-radius: 980px;
+    font-size: 14px; font-weight: 500; cursor: pointer;
+    border: none; transition: all .2s; text-decoration: none;
+  }
+  .btn-ghost { background: transparent; color: var(--text2); border: 1px solid var(--border2); }
+  .btn-ghost:hover { background: var(--surface); color: var(--text); }
+  .btn-primary { background: var(--accent); color: #fff; }
+  .btn-primary:hover { background: #2563eb; transform: translateY(-1px); box-shadow: 0 8px 24px rgba(59,130,246,.4); }
+
+  .hero {
+    position: relative; z-index: 1; min-height: 100vh;
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    text-align: center; padding: 120px 24px 80px;
+  }
+
+  .hero-badge {
+    display: inline-flex; align-items: center; gap: 8px;
+    padding: 6px 16px; border-radius: 980px;
+    background: rgba(59,130,246,.12); border: 1px solid rgba(59,130,246,.3);
+    font-size: 12px; font-weight: 500; color: var(--accent);
+    letter-spacing: .5px; text-transform: uppercase; margin-bottom: 32px;
+  }
+  .hero-badge-dot { width:6px; height:6px; border-radius:50%; background:var(--accent); animation: pulse 1.5s infinite; }
+
+  h1 { font-size: clamp(40px, 7vw, 88px); font-weight: 700; letter-spacing: -2px; line-height: 1.05; max-width: 900px; margin-bottom: 24px; }
+
+  .gradient-text { background: linear-gradient(135deg, #fff 30%, #6366f1); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+
+  .hero-sub { font-size: clamp(16px, 2vw, 20px); color: var(--text2); max-width: 560px; line-height: 1.6; margin-bottom: 48px; }
+  .hero-actions { display: flex; gap: 16px; flex-wrap: wrap; justify-content: center; }
+
+  .stats-bar {
+    position: relative; z-index: 1; display: flex; justify-content: center;
+    max-width: 800px; margin: 0 auto 120px;
+    border: 1px solid var(--border); border-radius: var(--r2); overflow: hidden;
+    background: rgba(255,255,255,.02); backdrop-filter: blur(12px);
+  }
+
+  .stat-item { flex: 1; padding: 28px 32px; text-align: center; border-right: 1px solid var(--border); }
+  .stat-item:last-child { border-right: none; }
+  .stat-num { font-size: 36px; font-weight: 700; letter-spacing: -1px; background: linear-gradient(135deg, #fff, #6366f1); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+  .stat-label { font-size: 13px; color: var(--text3); margin-top: 4px; }
+
+  section { position: relative; z-index: 1; padding: 100px 24px; max-width: 1200px; margin: 0 auto; }
+  .section-eyebrow { font-size: 12px; font-weight: 600; letter-spacing: 1.5px; text-transform: uppercase; color: var(--accent); margin-bottom: 16px; }
+  h2 { font-size: clamp(28px, 4vw, 52px); font-weight: 700; letter-spacing: -1.5px; line-height: 1.1; margin-bottom: 16px; }
+  .section-sub { font-size: 18px; color: var(--text2); max-width: 520px; line-height: 1.6; margin-bottom: 64px; }
+
+  .cards-grid {
+    display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+    gap: 2px; background: var(--border); border-radius: var(--r2); overflow: hidden;
+  }
+  .card {
+    background: var(--bg1); padding: 40px 36px;
+    cursor: default; transition: background .3s; transform-style: preserve-3d; will-change: transform;
+  }
+  .card:hover { background: var(--bg2); }
+  .card-icon { width: 48px; height: 48px; border-radius: 14px; display: flex; align-items: center; justify-content: center; font-size: 22px; margin-bottom: 24px; background: var(--surface); border: 1px solid var(--border); }
+  .card h3 { font-size: 18px; font-weight: 600; margin-bottom: 12px; }
+  .card p { font-size: 15px; color: var(--text2); line-height: 1.6; }
+  .card-tag { display: inline-block; margin-top: 20px; padding: 4px 12px; border-radius: 980px; font-size: 12px; font-weight: 500; background: rgba(59,130,246,.12); color: var(--accent); border: 1px solid rgba(59,130,246,.2); }
+
+  .incidents-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(340px, 1fr)); gap: 16px; }
+
+  .incident-card {
+    background: var(--bg1); border: 1px solid var(--border); border-radius: var(--r);
+    padding: 24px; cursor: pointer; transition: all .25s var(--ease);
+    position: relative; overflow: hidden;
+  }
+  .incident-card::before { content: ''; position: absolute; inset: 0; background: linear-gradient(135deg, rgba(59,130,246,.06), transparent); opacity: 0; transition: opacity .3s; }
+  .incident-card:hover { border-color: var(--border2); transform: translateY(-4px); box-shadow: 0 20px 60px rgba(0,0,0,.5); }
+  .incident-card:hover::before { opacity: 1; }
+  .incident-card:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+  .inc-header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 16px; }
+  .inc-id { font-family: 'JetBrains Mono', monospace; font-size: 12px; font-weight: 500; color: var(--accent); letter-spacing: .5px; }
+  .severity-badge { padding: 3px 10px; border-radius: 980px; font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: .5px; }
+  .sev-critical { background: rgba(239,68,68,.15); color: #f87171; border: 1px solid rgba(239,68,68,.3); }
+  .sev-high { background: rgba(234,179,8,.12); color: #fbbf24; border: 1px solid rgba(234,179,8,.3); }
+  .sev-medium { background: rgba(59,130,246,.12); color: #60a5fa; border: 1px solid rgba(59,130,246,.2); }
+  .inc-title { font-size: 15px; font-weight: 600; margin-bottom: 8px; line-height: 1.4; }
+  .inc-pipeline { font-size: 13px; color: var(--text3); font-family: 'JetBrains Mono', monospace; }
+  .inc-meta { display: flex; align-items: center; gap: 16px; margin-top: 16px; }
+  .inc-conf { flex: 1; height: 3px; background: rgba(255,255,255,.06); border-radius: 2px; overflow: hidden; }
+  .inc-conf-fill { height: 100%; border-radius: 2px; background: linear-gradient(90deg, var(--accent), var(--accent2)); }
+  .inc-conf-label { font-size: 12px; color: var(--text3); white-space: nowrap; }
+  .inc-time { font-size: 12px; color: var(--text3); }
+  .inc-arrow { width: 28px; height: 28px; border-radius: 50%; background: var(--surface); border: 1px solid var(--border); display: flex; align-items: center; justify-content: center; color: var(--text3); font-size: 14px; transition: all .2s var(--spring); flex-shrink: 0; }
+  .incident-card:hover .inc-arrow { background: var(--accent); border-color: var(--accent); color: #fff; transform: translateX(3px); }
+
+  /* Sheet */
+  .sheet-overlay { position: fixed; inset: 0; z-index: 200; background: rgba(0,0,0,0); backdrop-filter: blur(0px); transition: background .3s, backdrop-filter .3s; pointer-events: none; }
+  .sheet-overlay.open { background: rgba(0,0,0,.6); backdrop-filter: blur(8px); pointer-events: all; }
+  .sheet { position: fixed; top: 0; right: 0; bottom: 0; width: min(560px, 100vw); z-index: 201; background: var(--bg2); border-left: 1px solid var(--border); transform: translateX(100%); transition: transform .4s var(--spring); overflow-y: auto; display: flex; flex-direction: column; }
+  .sheet.open { transform: translateX(0); }
+  .sheet-header { padding: 24px 28px; border-bottom: 1px solid var(--border); display: flex; align-items: flex-start; justify-content: space-between; position: sticky; top: 0; background: var(--bg2); z-index: 1; }
+  .sheet-close { width: 36px; height: 36px; border-radius: 50%; background: var(--surface); border: 1px solid var(--border); color: var(--text2); font-size: 18px; cursor: pointer; display: flex; align-items: center; justify-content: center; transition: all .2s; flex-shrink: 0; }
+  .sheet-close:hover { background: var(--border); color: var(--text); }
+  .sheet-close:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+  .sheet-body { padding: 28px; flex: 1; }
+  .sheet-section { margin-bottom: 32px; }
+  .sheet-section-title { font-size: 11px; font-weight: 600; letter-spacing: 1.2px; text-transform: uppercase; color: var(--text3); margin-bottom: 16px; }
+  .diag-box { background: var(--bg3); border: 1px solid var(--border); border-radius: var(--r); padding: 16px 20px; font-size: 14px; line-height: 1.7; color: var(--text2); }
+  .detail-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+  .detail-item { background: var(--bg3); border: 1px solid var(--border); border-radius: 10px; padding: 14px 16px; }
+  .detail-item-label { font-size: 11px; color: var(--text3); margin-bottom: 6px; text-transform: uppercase; letter-spacing: .8px; }
+  .detail-item-value { font-size: 14px; font-weight: 500; font-family: 'JetBrains Mono', monospace; }
+  .steps-list { display: flex; flex-direction: column; gap: 10px; }
+  .step-item { display: flex; gap: 14px; align-items: flex-start; padding: 14px 16px; background: var(--bg3); border: 1px solid var(--border); border-radius: 10px; }
+  .step-num { width: 22px; height: 22px; border-radius: 50%; background: rgba(59,130,246,.15); border: 1px solid rgba(59,130,246,.3); color: var(--accent); font-size: 11px; font-weight: 700; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+  .step-text { font-size: 14px; color: var(--text2); line-height: 1.5; }
+  .conf-bar-wrap { display: flex; align-items: center; gap: 12px; }
+  .conf-bar-track { flex: 1; height: 6px; background: rgba(255,255,255,.06); border-radius: 4px; overflow: hidden; }
+  .conf-bar-fill { height: 100%; border-radius: 4px; background: linear-gradient(90deg, var(--accent), var(--accent2)); transition: width .8s var(--ease); }
+  .conf-pct { font-size: 15px; font-weight: 700; color: var(--accent); }
+
+  .code-block { background: #0d0d0d; border: 1px solid var(--border); border-radius: var(--r); padding: 20px 24px; font-family: 'JetBrains Mono', monospace; font-size: 13px; line-height: 1.7; color: #a8ff78; overflow-x: auto; }
+
+  footer { position: relative; z-index: 1; text-align: center; padding: 60px 24px; border-top: 1px solid var(--border); color: var(--text3); font-size: 14px; }
+  footer a { color: var(--accent); text-decoration: none; }
+  footer a:hover { text-decoration: underline; }
+
+  .fade-up { opacity: 0; transform: translateY(32px); transition: opacity .7s var(--ease), transform .7s var(--ease); }
+  .fade-up.visible { opacity: 1; transform: translateY(0); }
+
+  @media (max-width: 768px) {
+    nav { padding: 0 20px; }
+    .nav-links { display: none; }
+    .stats-bar { flex-direction: column; }
+    .stat-item { border-right: none; border-bottom: 1px solid var(--border); }
+    .stat-item:last-child { border-bottom: none; }
+    .detail-grid { grid-template-columns: 1fr; }
+  }
+</style>
+</head>
+<body>
+
+<canvas id="bg-canvas"></canvas>
+
+<nav aria-label="Main navigation">
+  <div class="nav-logo">
+    <div class="nav-logo-dot" aria-hidden="true"></div>
+    DataGuard
+  </div>
+  <div class="nav-links" role="navigation">
+    <a href="#features">Features</a>
+    <a href="#incidents">Incidents</a>
+    <a href="#deploy">Deploy</a>
+  </div>
+  <div class="nav-cta">
+    <a href="https://github.com/Akshay007724/dataguard-agent" class="btn btn-ghost" target="_blank" rel="noopener">GitHub</a>
+    <a href="dashboard/" class="btn btn-primary">Live Dashboard</a>
+  </div>
+</nav>
+
+<section class="hero" aria-labelledby="hero-heading">
+  <div class="hero-badge">
+    <div class="hero-badge-dot" aria-hidden="true"></div>
+    Pipeline Observability &amp; AI Triage
+  </div>
+  <h1 id="hero-heading">
+    <span class="gradient-text">Self-healing pipelines.</span><br>
+    Zero guesswork.
+  </h1>
+  <p class="hero-sub">DataGuard watches every Airflow DAG and Argo workflow in real time — detecting failures, diagnosing root causes with AI, and triggering safe remediations automatically.</p>
+  <div class="hero-actions">
+    <a href="dashboard/" class="btn btn-primary">Open Dashboard &rarr;</a>
+    <a href="https://github.com/Akshay007724/dataguard-agent" class="btn btn-ghost" target="_blank" rel="noopener">View Source</a>
+  </div>
+</section>
+
+<div class="stats-bar fade-up" role="region" aria-label="Key metrics">
+  <div class="stat-item"><div class="stat-num">&lt;2s</div><div class="stat-label">Detection latency</div></div>
+  <div class="stat-item"><div class="stat-num">94%</div><div class="stat-label">Pattern match rate</div></div>
+  <div class="stat-item"><div class="stat-num">30</div><div class="stat-label">Agentic triage turns</div></div>
+  <div class="stat-item"><div class="stat-num">4</div><div class="stat-label">Orchestrators supported</div></div>
+</div>
+
+<section id="features" aria-labelledby="features-heading">
+  <p class="section-eyebrow">Architecture</p>
+  <h2 id="features-heading">Built for production pipelines</h2>
+  <p class="section-sub">Four composable packages. One strict dependency graph. No circular imports.</p>
+  <div class="cards-grid fade-up" id="features-grid" role="list"></div>
+</section>
+
+<section id="incidents" aria-labelledby="incidents-heading">
+  <p class="section-eyebrow">Live Incidents</p>
+  <h2 id="incidents-heading">Recent triage events</h2>
+  <p class="section-sub">Click any incident to inspect AI diagnosis, confidence score, and remediation steps.</p>
+  <div class="incidents-grid fade-up" id="incidents-grid" role="list" aria-label="Incident list"></div>
+</section>
+
+<section id="deploy" aria-labelledby="deploy-heading">
+  <p class="section-eyebrow">Quick Start</p>
+  <h2 id="deploy-heading">Up in 60 seconds</h2>
+  <p class="section-sub">Docker Compose spins up the full stack with seeded failing DAGs.</p>
+  <div class="code-block" role="region" aria-label="Quick start commands">
+    <span style="color:#71717a"># Clone and start the demo stack</span><br>
+    git clone https://github.com/Akshay007724/dataguard-agent<br>
+    cd dataguard-agent<br>
+    make demo<br><br>
+    <span style="color:#71717a"># Sentinel: http://localhost:8080</span><br>
+    <span style="color:#71717a"># Grafana:  http://localhost:3000</span><br>
+    <span style="color:#71717a"># Airflow:  http://localhost:8888</span>
+  </div>
+</section>
+
+<footer>
+  <p>Built with Python, litellm, FastAPI, MCP &mdash; <a href="https://github.com/Akshay007724/dataguard-agent" target="_blank" rel="noopener">dataguard-agent on GitHub</a></p>
+</footer>
+
+<div class="sheet-overlay" id="sheet-overlay" aria-hidden="true"></div>
+<div class="sheet" id="sheet" role="dialog" aria-modal="true" aria-labelledby="sheet-title" tabindex="-1">
+  <div class="sheet-header">
+    <div>
+      <div id="sheet-eyebrow" style="font-size:12px;font-family:'JetBrains Mono',monospace;color:var(--accent);margin-bottom:6px;font-weight:500;letter-spacing:.5px;"></div>
+      <div id="sheet-title" style="font-size:18px;font-weight:600;line-height:1.3;"></div>
+    </div>
+    <button class="sheet-close" id="sheet-close" aria-label="Close incident detail">&#x2715;</button>
+  </div>
+  <div class="sheet-body" id="sheet-body"></div>
+</div>
+
+<script>
+const FEATURES = [
+  { icon: '🔭', title: 'Hybrid Detection', body: 'Deterministic pattern matchers run first (OOM, timeout, schema drift). LLM called only for novel failures — 94% of incidents resolved without an API call.', tag: 'Low latency' },
+  { icon: '🤖', title: 'Agentic Triage', body: 'TriageAgent drives a litellm tool-use loop — up to 30 turns, calling MCP tools (get_logs, get_lineage, check_sla) until it reaches a confident diagnosis.', tag: 'Max 30 turns' },
+  { icon: '🛡️', title: 'Read-only by Default', body: 'execute_remediation requires four explicit guards: auto_remediation_enabled, confirm: true, approver_id, and risk level check. All must pass.', tag: 'Safe by design' },
+  { icon: '📡', title: 'MCP Server', body: 'Exposes 8 tools via the Model Context Protocol. Any MCP-compatible client (Claude Desktop, custom agents) can attach and call pipeline diagnostic tools.', tag: 'Protocol native' },
+  { icon: '📊', title: 'Full Observability', body: 'Prometheus metrics on every MCP tool call, LLM token usage, adapter latency, and quality detector runs. Ships with a Grafana provisioning config.', tag: 'Grafana ready' },
+  { icon: '🔌', title: 'Multi-Orchestrator', body: 'Airflow and Argo adapters are fully implemented. Dagster and Prefect stubs are ready for community PRs. One abstract base class to rule them all.', tag: '4 adapters' },
+];
+
+const INCIDENTS = [
+  {
+    id: 'INC-0047', severity: 'critical',
+    title: 'Schema drift: analytics_mart.user_events',
+    pipeline: 'dbt_transform_daily', time: '4 min ago', confidence: 0.97,
+    diagnosis: 'Column `session_duration_ms` was renamed to `session_duration_seconds` in the upstream events table during a migration at 03:14 UTC. The dbt model references the old column name, causing a compile-time error on the incremental run. Lineage trace confirms the upstream source changed 22 minutes before the first failure.',
+    details: [{ label:'Root Cause', value:'Column rename' },{ label:'Adapter', value:'AirflowAdapter' },{ label:'Duration', value:'4m 12s' },{ label:'Affected runs', value:'3 / 3' }],
+    steps: ['Update dbt model ref: rename session_duration_ms to session_duration_seconds','Run dbt compile to validate schema resolution','Backfill the failed incremental window with --full-refresh','Add a schema contract test to catch future renames in CI'],
+  },
+  {
+    id: 'INC-0046', severity: 'high',
+    title: 'Connection refused: postgres-prod-replica',
+    pipeline: 'warehouse_sync_hourly', time: '18 min ago', confidence: 0.91,
+    diagnosis: 'Connection pool exhaustion on postgres-prod-replica (max_connections=100). The long-running analytics query launched at 03:00 UTC held 98 connections for 14 minutes, blocking the sync pipeline. Redis debounce suppressed 12 duplicate triage calls during the window.',
+    details: [{ label:'Root Cause', value:'Pool exhaustion' },{ label:'Adapter', value:'AirflowAdapter' },{ label:'Duration', value:'14m 03s' },{ label:'Suppressed', value:'12 dupe calls' }],
+    steps: ['Increase max_connections on replica or add PgBouncer pooling','Add query timeout (statement_timeout = 300s) to analytics role','Reschedule analytics batch to off-peak window (04:00–05:00 UTC)','Alert on connection utilization above 80% before exhaustion'],
+  },
+  {
+    id: 'INC-0045', severity: 'high',
+    title: 'OOMKilled: ml-feature-compute worker',
+    pipeline: 'ml_feature_pipeline_v2', time: '41 min ago', confidence: 0.99,
+    diagnosis: 'Pattern matcher matched OOM signature in task logs (exit code 137, kernel OOM killer). Worker pod requested 4Gi, consumed 6.8Gi during the wide join of user_features x product_catalog. Deterministic match — LLM was not called.',
+    details: [{ label:'Root Cause', value:'OOM (exit 137)' },{ label:'Adapter', value:'ArgoAdapter' },{ label:'Detection', value:'Deterministic' },{ label:'Peak mem', value:'6.8 Gi' }],
+    steps: ['Raise worker memory request to 8Gi in Argo workflow spec','Partition the wide join by user_id modulo 4 to reduce peak memory','Add resource limits and a Kubernetes LimitRange to catch regressions','Profile join with EXPLAIN ANALYZE to find unnecessary broadcast'],
+  },
+  {
+    id: 'INC-0044', severity: 'medium',
+    title: 'SLA breach: reporting_daily +47 min',
+    pipeline: 'reporting_daily_v3', time: '1h 12m ago', confidence: 0.85,
+    diagnosis: 'Pipeline completed at 07:47 UTC, 47 minutes past the 07:00 UTC SLA. Upstream dependency warehouse_sync_hourly was delayed due to INC-0046, causing a cascade. No task failures — pure latency propagation through the dependency graph.',
+    details: [{ label:'Root Cause', value:'Upstream delay' },{ label:'Adapter', value:'AirflowAdapter' },{ label:'Overrun', value:'+47 min' },{ label:'Upstream', value:'INC-0046' }],
+    steps: ['Add SLA buffer of 60 min to absorb upstream variance','Link SLA alerts to upstream dependency health, not just task completion','Evaluate whether reporting_daily can run with T-1 warehouse snapshot as fallback','Notify downstream consumers of delayed data availability automatically'],
+  },
+];
+
+// Canvas node graph
+(function() {
+  const canvas = document.getElementById('bg-canvas');
+  const ctx = canvas.getContext('2d');
+  let W, H, nodes, mouse = { x: 0, y: 0 };
+  function resize() { W = canvas.width = window.innerWidth; H = canvas.height = window.innerHeight; }
+  function mkNodes() {
+    nodes = Array.from({ length: 55 }, () => ({
+      x: Math.random() * W, y: Math.random() * H,
+      vx: (Math.random() - .5) * .3, vy: (Math.random() - .5) * .3,
+      r: 1.5 + Math.random() * 2.5, opacity: .2 + Math.random() * .4,
+    }));
+  }
+  function draw() {
+    ctx.clearRect(0, 0, W, H);
+    const mx = mouse.x, my = mouse.y;
     for (let i = 0; i < nodes.length; i++) {
       for (let j = i + 1; j < nodes.length; j++) {
-        const d = nodes[i].position.distanceTo(nodes[j].position);
-        if (d < MAX_DIST) {
-          const geo = new THREE.BufferGeometry().setFromPoints([nodes[i].position, nodes[j].position]);
-          const op = (1 - d / MAX_DIST) * 0.25;
-          const mat = new THREE.LineBasicMaterial({ color: 0x2563eb, transparent: true, opacity: op });
-          edgeGroup.add(new THREE.Line(geo, mat));
+        const dx = nodes[i].x - nodes[j].x, dy = nodes[i].y - nodes[j].y;
+        const dist = Math.sqrt(dx*dx + dy*dy);
+        if (dist < 140) {
+          ctx.beginPath();
+          ctx.strokeStyle = 'rgba(99,102,241,' + (.07*(1-dist/140)) + ')';
+          ctx.lineWidth = 1;
+          ctx.moveTo(nodes[i].x, nodes[i].y);
+          ctx.lineTo(nodes[j].x, nodes[j].y);
+          ctx.stroke();
         }
       }
     }
-  }
-
-  /* Mouse parallax */
-  let mx = 0, my = 0;
-  window.addEventListener('mousemove', e => {
-    mx = (e.clientX / window.innerWidth - .5) * 2;
-    my = (e.clientY / window.innerHeight - .5) * 2;
-  }, { passive: true });
-
-  let frame = 0;
-  function animate() {
-    requestAnimationFrame(animate);
-    frame++;
-
     nodes.forEach(n => {
-      n.position.add(n.userData.vel);
-      if (Math.abs(n.position.x) > 26) n.userData.vel.x *= -1;
-      if (Math.abs(n.position.y) > 16) n.userData.vel.y *= -1;
-      if (Math.abs(n.position.z) > 12) n.userData.vel.z *= -1;
+      const px = (mx - W/2) * .008, py = (my - H/2) * .008;
+      ctx.beginPath();
+      ctx.arc(n.x + px, n.y + py, n.r, 0, Math.PI*2);
+      ctx.fillStyle = 'rgba(99,102,241,' + n.opacity + ')';
+      ctx.fill();
+      n.x += n.vx; n.y += n.vy;
+      if (n.x < 0 || n.x > W) n.vx *= -1;
+      if (n.y < 0 || n.y > H) n.vy *= -1;
     });
-
-    if (frame % 4 === 0) rebuildEdges();
-
-    camera.position.x += (mx * 3 - camera.position.x) * 0.04;
-    camera.position.y += (-my * 2 - camera.position.y) * 0.04;
-    camera.lookAt(0, 0, 0);
-
-    renderer.render(scene, camera);
+    requestAnimationFrame(draw);
   }
-  animate();
-
-  window.addEventListener('resize', () => {
-    camera.aspect = window.innerWidth / window.innerHeight;
-    camera.updateProjectionMatrix();
-    renderer.setSize(window.innerWidth, window.innerHeight);
-  });
+  window.addEventListener('resize', () => { resize(); mkNodes(); });
+  window.addEventListener('mousemove', e => { mouse.x = e.clientX; mouse.y = e.clientY; });
+  resize(); mkNodes(); draw();
 })();
 
-/* ── 3D card tilt ──────────────────────────────────────── */
-document.querySelectorAll('[data-tilt]').forEach(card => {
+// Feature cards
+const featGrid = document.getElementById('features-grid');
+FEATURES.forEach(f => {
+  const card = document.createElement('div');
+  card.className = 'card';
+  card.setAttribute('role', 'listitem');
+
+  const icon = document.createElement('div');
+  icon.className = 'card-icon';
+  icon.setAttribute('aria-hidden', 'true');
+  icon.textContent = f.icon;
+
+  const title = document.createElement('h3');
+  title.textContent = f.title;
+
+  const body = document.createElement('p');
+  body.textContent = f.body;
+
+  const tag = document.createElement('span');
+  tag.className = 'card-tag';
+  tag.textContent = f.tag;
+
+  card.append(icon, title, body, tag);
+
   card.addEventListener('mousemove', e => {
-    const r = card.getBoundingClientRect();
-    const x = (e.clientX - r.left) / r.width  - .5;
-    const y = (e.clientY - r.top)  / r.height - .5;
-    card.style.transform = `perspective(800px) rotateY(${x * 12}deg) rotateX(${-y * 10}deg) translateZ(8px)`;
-    card.style.setProperty('--mx', `${(x + .5) * 100}%`);
-    card.style.setProperty('--my', `${(y + .5) * 100}%`);
+    const rect = card.getBoundingClientRect();
+    const x = (e.clientX - rect.left) / rect.width - .5;
+    const y = (e.clientY - rect.top) / rect.height - .5;
+    card.style.transform = 'perspective(800px) rotateY(' + (x*10) + 'deg) rotateX(' + (-y*10) + 'deg) translateZ(8px)';
   });
-  card.addEventListener('mouseleave', () => {
-    card.style.transform = '';
-  });
+  card.addEventListener('mouseleave', () => { card.style.transform = ''; });
+
+  featGrid.appendChild(card);
 });
 
-/* ── Charts ────────────────────────────────────────────── */
-Chart.defaults.color = '#64748b';
-Chart.defaults.font.family = "'Fira Code', monospace";
-Chart.defaults.font.size = 10;
+// Incident cards
+const incGrid = document.getElementById('incidents-grid');
+INCIDENTS.forEach(inc => {
+  const card = document.createElement('article');
+  card.className = 'incident-card';
+  card.setAttribute('role', 'listitem');
+  card.setAttribute('tabindex', '0');
+  card.setAttribute('aria-label', inc.id + ': ' + inc.title + '. Click to view details.');
 
-const GRID = { color: 'rgba(31,41,55,.6)', tickColor: 'transparent', borderColor: 'rgba(31,41,55,.6)' };
-function labels(n) {
-  const now = new Date();
-  return Array.from({ length: n }, (_, i) => {
-    const d = new Date(now - (n-1-i) * 60000);
-    return d.toISOString().slice(11,16);
-  });
+  const header = document.createElement('div');
+  header.className = 'inc-header';
+
+  const idEl = document.createElement('div');
+  idEl.className = 'inc-id';
+  idEl.textContent = inc.id;
+
+  const badge = document.createElement('div');
+  badge.className = 'severity-badge sev-' + inc.severity;
+  badge.textContent = inc.severity;
+
+  header.append(idEl, badge);
+
+  const titleEl = document.createElement('div');
+  titleEl.className = 'inc-title';
+  titleEl.textContent = inc.title;
+
+  const pipeline = document.createElement('div');
+  pipeline.className = 'inc-pipeline';
+  pipeline.textContent = inc.pipeline;
+
+  const meta = document.createElement('div');
+  meta.className = 'inc-meta';
+
+  const confTrack = document.createElement('div');
+  confTrack.className = 'inc-conf';
+  const confFill = document.createElement('div');
+  confFill.className = 'inc-conf-fill';
+  confFill.style.width = Math.round(inc.confidence * 100) + '%';
+  confTrack.appendChild(confFill);
+
+  const confLabel = document.createElement('div');
+  confLabel.className = 'inc-conf-label';
+  confLabel.textContent = Math.round(inc.confidence * 100) + '% conf';
+
+  const time = document.createElement('div');
+  time.className = 'inc-time';
+  time.textContent = inc.time;
+
+  const arrow = document.createElement('div');
+  arrow.className = 'inc-arrow';
+  arrow.setAttribute('aria-hidden', 'true');
+  arrow.textContent = '→';
+
+  meta.append(confTrack, confLabel, time, arrow);
+  card.append(header, titleEl, pipeline, meta);
+
+  card.addEventListener('click', () => openSheet(inc));
+  card.addEventListener('keydown', e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); openSheet(inc); } });
+
+  incGrid.appendChild(card);
+});
+
+// Sheet
+const overlay = document.getElementById('sheet-overlay');
+const sheet = document.getElementById('sheet');
+const sheetClose = document.getElementById('sheet-close');
+const sheetEyebrow = document.getElementById('sheet-eyebrow');
+const sheetTitle = document.getElementById('sheet-title');
+const sheetBody = document.getElementById('sheet-body');
+let prevFocus = null;
+
+function mkSection(title) {
+  const s = document.createElement('div');
+  s.className = 'sheet-section';
+  const h = document.createElement('div');
+  h.className = 'sheet-section-title';
+  h.textContent = title;
+  s.appendChild(h);
+  return s;
 }
-function rand(n, b, s) { return Array.from({length:n},()=>+(b+(Math.random()-.5)*s).toFixed(3)); }
 
-/* Hero mini chart */
-new Chart(document.getElementById('heroChart'), {
-  type: 'line',
-  data: {
-    labels: labels(20),
-    datasets: [
-      { data: rand(20,.45,.2), borderColor:'#3b82f6', borderWidth:1.5, pointRadius:0, tension:.4, fill:false },
-      { data: rand(20,.12,.07), borderColor:'#22c55e', borderWidth:1.5, pointRadius:0, tension:.4, fill:false },
-    ],
-  },
-  options: {
-    responsive:true, maintainAspectRatio:false,
-    plugins:{ legend:{display:false}, tooltip:{enabled:false} },
-    scales:{ x:{display:false}, y:{display:false} },
-    animation:{ duration:0 },
-  },
+function openSheet(inc) {
+  prevFocus = document.activeElement;
+  sheetEyebrow.textContent = inc.id + '  ·  ' + inc.severity.toUpperCase();
+  sheetTitle.textContent = inc.title;
+
+  while (sheetBody.firstChild) sheetBody.removeChild(sheetBody.firstChild);
+
+  // Diagnosis
+  const s1 = mkSection('Diagnosis');
+  const diagBox = document.createElement('div');
+  diagBox.className = 'diag-box';
+  diagBox.textContent = inc.diagnosis;
+  s1.appendChild(diagBox);
+  sheetBody.appendChild(s1);
+
+  // Confidence
+  const s2 = mkSection('Confidence Score');
+  const confWrap = document.createElement('div');
+  confWrap.className = 'conf-bar-wrap';
+  const track = document.createElement('div');
+  track.className = 'conf-bar-track';
+  const fill = document.createElement('div');
+  fill.className = 'conf-bar-fill';
+  fill.style.width = '0%';
+  track.appendChild(fill);
+  const pct = document.createElement('div');
+  pct.className = 'conf-pct';
+  pct.textContent = Math.round(inc.confidence * 100) + '%';
+  confWrap.append(track, pct);
+  s2.appendChild(confWrap);
+  sheetBody.appendChild(s2);
+  requestAnimationFrame(() => { fill.style.width = Math.round(inc.confidence * 100) + '%'; });
+
+  // Details grid
+  const s3 = mkSection('Details');
+  const grid = document.createElement('div');
+  grid.className = 'detail-grid';
+  inc.details.forEach(d => {
+    const item = document.createElement('div');
+    item.className = 'detail-item';
+    const label = document.createElement('div');
+    label.className = 'detail-item-label';
+    label.textContent = d.label;
+    const value = document.createElement('div');
+    value.className = 'detail-item-value';
+    value.textContent = d.value;
+    item.append(label, value);
+    grid.appendChild(item);
+  });
+  s3.appendChild(grid);
+  sheetBody.appendChild(s3);
+
+  // Steps
+  const s4 = mkSection('Remediation Steps');
+  const list = document.createElement('div');
+  list.className = 'steps-list';
+  inc.steps.forEach((stepText, i) => {
+    const step = document.createElement('div');
+    step.className = 'step-item';
+    const num = document.createElement('div');
+    num.className = 'step-num';
+    num.textContent = String(i + 1);
+    const text = document.createElement('div');
+    text.className = 'step-text';
+    text.textContent = stepText;
+    step.append(num, text);
+    list.appendChild(step);
+  });
+  s4.appendChild(list);
+  sheetBody.appendChild(s4);
+
+  overlay.classList.add('open');
+  overlay.setAttribute('aria-hidden', 'false');
+  sheet.classList.add('open');
+  requestAnimationFrame(() => { sheetClose.focus(); });
+}
+
+function closeSheet() {
+  overlay.classList.remove('open');
+  overlay.setAttribute('aria-hidden', 'true');
+  sheet.classList.remove('open');
+  if (prevFocus) prevFocus.focus();
+}
+
+sheetClose.addEventListener('click', closeSheet);
+overlay.addEventListener('click', closeSheet);
+document.addEventListener('keydown', e => {
+  if (e.key === 'Escape' && sheet.classList.contains('open')) closeSheet();
 });
 
-/* Latency */
-new Chart(document.getElementById('latencyChart'), {
-  type:'line',
-  data:{
-    labels:labels(30),
-    datasets:[
-      { label:'p50', data:rand(30,.12,.06), borderColor:'#22c55e', borderWidth:1.5, pointRadius:0, tension:.4, fill:false },
-      { label:'p95', data:rand(30,.45,.18), borderColor:'#3b82f6', borderWidth:1.5, pointRadius:0, tension:.4, fill:false },
-      { label:'p99', data:rand(30,1.1,.4),  borderColor:'#f97316', borderWidth:1.5, pointRadius:0, tension:.4, fill:false, borderDash:[4,4] },
-    ],
-  },
-  options:{
-    responsive:true, maintainAspectRatio:false,
-    interaction:{mode:'index',intersect:false},
-    plugins:{ legend:{position:'top',labels:{boxWidth:8,usePointStyle:true}}, tooltip:{backgroundColor:'#111827',borderColor:'#1f2937',borderWidth:1} },
-    scales:{ x:{grid:GRID,ticks:{maxTicksLimit:6}}, y:{grid:GRID,title:{display:true,text:'s'}} },
-  },
+sheet.addEventListener('keydown', e => {
+  if (e.key !== 'Tab') return;
+  const focusable = sheet.querySelectorAll('button, [href], [tabindex]:not([tabindex="-1"])');
+  const first = focusable[0], last = focusable[focusable.length - 1];
+  if (e.shiftKey) { if (document.activeElement === first) { e.preventDefault(); last.focus(); } }
+  else { if (document.activeElement === last) { e.preventDefault(); first.focus(); } }
 });
 
-/* Tokens */
-new Chart(document.getElementById('tokenChart'), {
-  type:'line',
-  data:{
-    labels:labels(30),
-    datasets:[
-      { label:'input', data:rand(30,1400,600), borderColor:'#2563eb', backgroundColor:'rgba(37,99,235,.1)', borderWidth:1.5, pointRadius:0, tension:.4, fill:true },
-      { label:'output', data:rand(30,800,300), borderColor:'#a855f7', backgroundColor:'rgba(168,85,247,.08)', borderWidth:1.5, pointRadius:0, tension:.4, fill:true },
-    ],
-  },
-  options:{
-    responsive:true, maintainAspectRatio:false,
-    interaction:{mode:'index',intersect:false},
-    plugins:{ legend:{position:'top',labels:{boxWidth:8,usePointStyle:true}}, tooltip:{backgroundColor:'#111827',borderColor:'#1f2937',borderWidth:1} },
-    scales:{ x:{grid:GRID,ticks:{maxTicksLimit:6}}, y:{grid:GRID,title:{display:true,text:'tok/min'}} },
-  },
-});
+// Scroll reveal
+const io = new IntersectionObserver(entries => {
+  entries.forEach(e => { if (e.isIntersecting) { e.target.classList.add('visible'); io.unobserve(e.target); } });
+}, { threshold: .1 });
+document.querySelectorAll('.fade-up').forEach(el => io.observe(el));
 </script>
 </body>
 </html>
