@@ -52,7 +52,7 @@ demo: ## Spin up full local stack with seeded failing pipelines
 	@echo "  Sentinel API:  http://localhost:8080"
 	@echo "  Grafana:       http://localhost:3000  (admin / admin)"
 	@echo "  Prometheus:    http://localhost:9091"
-	@echo "  Marquez API:   http://localhost:5000"
+	@echo "  Marquez API:   http://localhost:5002"
 
 demo-down: ## Tear down local stack (keeps volumes)
 	docker compose down

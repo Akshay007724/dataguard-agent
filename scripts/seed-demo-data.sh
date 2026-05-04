@@ -5,7 +5,7 @@ set -euo pipefail
 
 SENTINEL_URL="${SENTINEL_URL:-http://localhost:8080}"
 AIRFLOW_URL="${AIRFLOW_URL:-http://localhost:8888}"
-MARQUEZ_URL="${MARQUEZ_URL:-http://localhost:5000}"
+MARQUEZ_URL="${MARQUEZ_URL:-http://localhost:5002}"
 
 wait_for() {
   local url="$1"

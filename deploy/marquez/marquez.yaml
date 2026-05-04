@@ -1,13 +1,18 @@
-# Marquez config for local demo — uses in-memory store
-# For production, swap to a real Postgres backend
+server:
+  applicationConnectors:
+    - type: http
+      port: 5000
+  adminConnectors:
+    - type: http
+      port: 5001
+
 db:
-  driverClass: org.h2.Driver
-  url: jdbc:h2:mem:marquez;DB_CLOSE_DELAY=-1
-  user: marquez
-  password: marquez
+  driverClass: org.postgresql.Driver
+  url: jdbc:postgresql://postgres:5432/marquez
+  user: sentinel
+  password: sentinel
 
 logging:
   level: WARN
 
-migrate:
-  runOnStartup: true
+migrateOnStartup: true
