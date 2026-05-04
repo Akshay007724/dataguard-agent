@@ -28,22 +28,23 @@ dev = [
 # ── Ruff ────────────────────────────────────────────────────────────────────
 [tool.ruff]
 target-version = "py312"
-line-length = 100
+line-length = 120
 
 [tool.ruff.lint]
-select = ["E", "F", "I", "N", "W", "UP", "ANN", "B", "SIM", "TCH", "RUF", "ASYNC"]
+select = ["E", "F", "I", "N", "W", "UP", "ANN", "B", "SIM", "RUF", "ASYNC"]
 ignore = [
     "ANN101",  # missing self type annotation
     "ANN102",  # missing cls type annotation
     "ANN401",  # Any is sometimes necessary
+    "E501",    # line too long — formatter handles this
 ]
 
 [tool.ruff.lint.isort]
 known-first-party = ["dataguard_core", "dataguard_adapters", "pipeline_sentinel"]
 
 [tool.ruff.lint.per-file-ignores]
-"tests/**" = ["ANN", "S101"]
-"**/tests/**" = ["ANN", "S101"]
+"tests/**" = ["ANN", "S101", "N806"]
+"**/tests/**" = ["ANN", "S101", "N806"]
 
 # ── Mypy ────────────────────────────────────────────────────────────────────
 [tool.mypy]

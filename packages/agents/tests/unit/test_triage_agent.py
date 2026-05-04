@@ -1,14 +1,13 @@
 from __future__ import annotations
 
 import json
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import Any
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
-
-from dataguard_agents.triage import TriageAgent
 from dataguard_agents.base import AgentContext
+from dataguard_agents.triage import TriageAgent
 
 
 def _make_ctx() -> MagicMock:
@@ -96,7 +95,7 @@ class TestTriageAgentRun:
             patch("dataguard_agents.triage.litellm.acompletion", new=AsyncMock(side_effect=[tool_response, stop_response])),
             patch("dataguard_agents.base._dispatch", new=mock_dispatch),
         ):
-            report = await agent.run()
+            await agent.run()
 
         mock_dispatch.assert_awaited_once()
         call_kwargs = mock_dispatch.call_args
@@ -160,7 +159,7 @@ class TestTriageAgentRun:
             patch("dataguard_agents.triage.litellm.acompletion", new=fake_completion),
             patch("dataguard_agents.base._dispatch", new=AsyncMock(side_effect=RuntimeError("DB down"))),
         ):
-            report = await agent.run()
+            await agent.run()
 
         assert any("error" in r for r in captured_tool_results)
         assert any("DB down" in r for r in captured_tool_results)
@@ -184,10 +183,10 @@ class TestTriageAgentRun:
 
         stop_response = _make_litellm_response(content=json.dumps(_VALID_REPORT), finish_reason="stop")
 
-        before = datetime.now(timezone.utc)
+        before = datetime.now(UTC)
         with patch("dataguard_agents.triage.litellm.acompletion", new=AsyncMock(return_value=stop_response)):
             report = await agent.run()
-        after = datetime.now(timezone.utc)
+        after = datetime.now(UTC)
 
         assert before <= report.triage_started_at <= after
         assert before <= report.triage_completed_at <= after

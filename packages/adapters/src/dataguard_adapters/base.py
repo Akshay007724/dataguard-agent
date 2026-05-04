@@ -127,4 +127,4 @@ class OrchestratorAdapter(ABC):
         if len(lines) <= head + tail:
             return raw
         omitted = len(lines) - head - tail
-        return "\n".join(lines[:head] + [f"... [{omitted} lines omitted] ..."] + lines[-tail:])
+        return "\n".join([*lines[:head], f"... [{omitted} lines omitted] ...", *lines[-tail:]])
