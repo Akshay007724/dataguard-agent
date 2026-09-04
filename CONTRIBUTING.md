@@ -4,7 +4,7 @@
 
 ```bash
 # Clone and install
-git clone https://github.com/dataguard-agent/dataguard-agent
+git clone https://github.com/Akshay007724/dataguard-agent
 cd dataguard-agent
 uv sync --frozen
 uv run pre-commit install

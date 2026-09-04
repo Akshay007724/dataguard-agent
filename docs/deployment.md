@@ -81,7 +81,7 @@ The quickest way to evaluate DataGuard Agent with an end-to-end stack including 
 
 ```bash
 # 1. Clone repository
-git clone https://github.com/dataguard-agent/dataguard-agent.git
+git clone https://github.com/Akshay007724/dataguard-agent.git
 cd dataguard-agent
 
 # 2. Configure your LLM API key

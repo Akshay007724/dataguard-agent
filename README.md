@@ -1,5 +1,19 @@
 # DataGuard Agent
 
+<p align="center">
+  <a href="https://github.com/Akshay007724/dataguard-agent/stargazers"><img src="https://img.shields.io/github/stars/Akshay007724/dataguard-agent?style=for-the-badge&logo=github&color=38bdf8" alt="GitHub Stars"></a>
+  <a href="https://dataguard-sentinel.fly.dev/docs"><img src="https://img.shields.io/badge/Live%20Demo-Fly.io-8b5cf6?style=for-the-badge&logo=flydotio" alt="Live Demo"></a>
+  <a href="https://modelcontextprotocol.io"><img src="https://img.shields.io/badge/Protocol-MCP%20Native-a855f7?style=for-the-badge&logo=anthropic" alt="MCP Native"></a>
+  <a href="LICENSE"><img src="https://img.shields.io/badge/License-Apache%202.0-blue?style=for-the-badge" alt="License"></a>
+  <a href="tests/"><img src="https://img.shields.io/badge/Tests-137%20Passed-10b981?style=for-the-badge" alt="Tests"></a>
+  <a href="docs/deployment.md"><img src="https://img.shields.io/badge/Local%20LLM-Ollama%20%2F%20Zero%20Key-f43f5e?style=for-the-badge&logo=ollama" alt="Ollama"></a>
+</p>
+
+<p align="center">
+  <strong>Autonomous Self-Healing SRE for Broken Data Pipelines</strong><br>
+  Intercepts Airflow & Argo DAG failures, traces column drift & upstream lineage, and drafts verified fixes via Model Context Protocol (MCP) — using local LLMs (Ollama) or Claude/GPT.
+</p>
+
 **Pipeline Sentinel** — an MCP-native AI agent that monitors data pipelines, traces failures to root cause, and files structured incidents. Built for data engineers who want LLM-driven triage without vendor lock-in.
 
 ---
@@ -18,8 +32,6 @@ $ claude "Check all pipeline statuses and diagnose any failures in the last 6 ho
 ● file_incident → INC-089 created
 ```
 
-*[full asciinema recording — placeholder URL]*
-
 ---
 
 ## Quick Start
@@ -27,7 +39,7 @@ $ claude "Check all pipeline statuses and diagnose any failures in the last 6 ho
 **Requirements:** Docker, Docker Compose v2, and an MCP client (Claude Desktop, Cursor, or the CLI).
 
 ```bash
-git clone https://github.com/dataguard-agent/dataguard-agent
+git clone https://github.com/Akshay007724/dataguard-agent
 cd dataguard-agent
 make demo
 ```

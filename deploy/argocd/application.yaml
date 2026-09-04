@@ -11,7 +11,7 @@ metadata:
 spec:
   project: default
   source:
-    repoURL: https://github.com/dataguard-agent/dataguard-agent
+    repoURL: https://github.com/Akshay007724/dataguard-agent
     targetRevision: main
     path: deploy/helm/dataguard-sentinel
     helm:

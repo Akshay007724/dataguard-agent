@@ -7,7 +7,7 @@ class DagsterAdapter(OrchestratorAdapter):
     def __init__(self, *args: object, **kwargs: object) -> None:
         raise NotImplementedError(
             "DagsterAdapter is not yet implemented. Track progress at "
-            "https://github.com/dataguard-agent/dataguard-agent/issues"
+            "https://github.com/Akshay007724/dataguard-agent/issues"
         )
 
     @property

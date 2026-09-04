@@ -16,7 +16,7 @@ RUN --mount=type=cache,target=/root/.cache/uv \
 # ── Stage 2: minimal runtime image ──────────────────────────────────────────
 FROM python:${PYTHON_VERSION}-slim AS runtime
 
-LABEL org.opencontainers.image.source="https://github.com/dataguard-agent/dataguard-agent"
+LABEL org.opencontainers.image.source="https://github.com/Akshay007724/dataguard-agent"
 LABEL org.opencontainers.image.description="Pipeline Sentinel — MCP-native agentic data pipeline triage"
 LABEL org.opencontainers.image.licenses="Apache-2.0"
 

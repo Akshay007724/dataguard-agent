@@ -1,8 +1,8 @@
 site_name: DataGuard Agent
 site_description: MCP-native agentic observability for data pipelines
 site_url: https://dataguard-agent.github.io/dataguard-agent
-repo_url: https://github.com/dataguard-agent/dataguard-agent
-repo_name: dataguard-agent/dataguard-agent
+repo_url: https://github.com/Akshay007724/dataguard-agent
+repo_name: Akshay007724/dataguard-agent
 edit_uri: edit/main/docs/
 
 theme:

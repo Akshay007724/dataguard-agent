@@ -8,7 +8,7 @@
 ## Start the demo stack
 
 ```bash
-git clone https://github.com/dataguard-agent/dataguard-agent
+git clone https://github.com/Akshay007724/dataguard-agent
 cd dataguard-agent
 make demo
 ```
