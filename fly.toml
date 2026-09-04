@@ -1,0 +1,37 @@
+# fly.toml app configuration file for DataGuard Agent (Pipeline Sentinel)
+# Reference: https://fly.io/docs/reference/configuration/
+
+app = "dataguard-sentinel"
+primary_region = "iad"
+
+[build]
+  dockerfile = "Dockerfile"
+
+[env]
+  LOG_LEVEL = "INFO"
+  LOG_FORMAT = "json"
+  SENTINEL_API_HOST = "0.0.0.0"
+  SENTINEL_API_PORT = "8080"
+  AUTO_REMEDIATION_ENABLED = "false"
+  AUTO_REMEDIATION_MAX_RISK = "low"
+  DEFAULT_LLM_MODEL = "anthropic/claude-3-5-sonnet-20241022"
+
+[http_service]
+  internal_port = 8080
+  force_https = true
+  auto_stop_machines = "stop"
+  auto_start_machines = true
+  min_machines_running = 1
+  processes = ["app"]
+
+[[http_service.checks]]
+  grace_period = "15s"
+  interval = "30s"
+  method = "GET"
+  timeout = "5s"
+  path = "/health"
+
+[[vm]]
+  size = "shared-cpu-1x"
+  memory = "512mb"
+  cpus = 1

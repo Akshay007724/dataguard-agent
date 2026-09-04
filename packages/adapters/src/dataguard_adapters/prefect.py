@@ -29,5 +29,7 @@ class PrefectAdapter(OrchestratorAdapter):
     async def get_run_history(self, pipeline_id: str, limit: int = 10) -> list[RunDetails]:
         raise NotImplementedError
 
-    async def get_run_logs(self, pipeline_id: str, run_id: str, task_id: str | None = None, head_lines: int = 50, tail_lines: int = 100) -> str:
+    async def get_run_logs(
+        self, pipeline_id: str, run_id: str, task_id: str | None = None, head_lines: int = 50, tail_lines: int = 100
+    ) -> str:
         raise NotImplementedError

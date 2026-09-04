@@ -54,9 +54,7 @@ class MarquezClient:
         self._namespace = namespace
 
     async def get_dataset(self, dataset_id: str) -> dict | None:  # type: ignore[type-arg]
-        resp = await self._client.get(
-            f"/api/v1/namespaces/{self._namespace}/datasets/{dataset_id}"
-        )
+        resp = await self._client.get(f"/api/v1/namespaces/{self._namespace}/datasets/{dataset_id}")
         if resp.status_code == 404:
             return None
         resp.raise_for_status()
@@ -68,7 +66,7 @@ class MarquezClient:
         depth: int = 3,
     ) -> dict | None:  # type: ignore[type-arg]
         resp = await self._client.get(
-            f"/api/v1/lineage",
+            "/api/v1/lineage",
             params={
                 "nodeId": f"dataset:{self._namespace}:{dataset_id}",
                 "depth": depth,
@@ -85,7 +83,7 @@ class MarquezClient:
         depth: int = 3,
     ) -> dict | None:  # type: ignore[type-arg]
         resp = await self._client.get(
-            f"/api/v1/lineage",
+            "/api/v1/lineage",
             params={
                 "nodeId": f"job:{self._namespace}:{job_name}",
                 "depth": depth,
@@ -108,3 +106,6 @@ class MarquezClient:
 
     async def close(self) -> None:
         await self._client.aclose()
+
+    async def aclose(self) -> None:
+        await self.close()

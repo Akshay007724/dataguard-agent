@@ -1,16 +1,14 @@
 from __future__ import annotations
 
 import json
-import uuid
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from typing import Any
 
-from sqlalchemy import select
-
 from dataguard_core.logging import get_logger
-from dataguard_core.store.postgres import IncidentRow, get_session
+from dataguard_core.store.repositories import IncidentRepository
 
 log = get_logger(__name__)
+_incident_repo = IncidentRepository()
 
 
 async def handle_get_recent_incidents(arguments: dict[str, Any]) -> str:
@@ -19,18 +17,14 @@ async def handle_get_recent_incidents(arguments: dict[str, Any]) -> str:
     status_filter: str | None = arguments.get("status")
 
     window_hours = _parse_time_window(time_window_str)
-    since = datetime.now(timezone.utc) - timedelta(hours=window_hours)
+    since = datetime.now(UTC) - timedelta(hours=window_hours)
 
-    async with get_session() as session:
-        stmt = select(IncidentRow).where(IncidentRow.created_at >= since)
-        if severity_filter:
-            stmt = stmt.where(IncidentRow.severity == severity_filter)
-        if status_filter:
-            stmt = stmt.where(IncidentRow.status == status_filter)
-        stmt = stmt.order_by(IncidentRow.created_at.desc()).limit(50)
-
-        result = await session.execute(stmt)
-        rows = result.scalars().all()
+    rows = await _incident_repo.get_recent_incidents(
+        since=since,
+        severity=severity_filter,
+        status=status_filter,
+        limit=50,
+    )
 
     incidents = [
         {
@@ -47,11 +41,13 @@ async def handle_get_recent_incidents(arguments: dict[str, Any]) -> str:
         for row in rows
     ]
 
-    return json.dumps({
-        "time_window": time_window_str,
-        "total": len(incidents),
-        "incidents": incidents,
-    })
+    return json.dumps(
+        {
+            "time_window": time_window_str,
+            "total": len(incidents),
+            "incidents": incidents,
+        }
+    )
 
 
 async def handle_file_incident(arguments: dict[str, Any]) -> str:
@@ -62,37 +58,33 @@ async def handle_file_incident(arguments: dict[str, Any]) -> str:
     diagnosis_id: str | None = arguments.get("diagnosis_id")
     root_cause_category: str | None = arguments.get("root_cause_category")
 
-    incident_id = f"INC-{uuid.uuid4().hex[:8].upper()}"
+    row = await _incident_repo.file_incident(
+        title=title,
+        pipeline_id=pipeline_id,
+        severity=severity,
+        description=description,
+        diagnosis_id=diagnosis_id,
+        root_cause_category=root_cause_category,
+    )
 
-    async with get_session() as session:
-        row = IncidentRow(
-            id=incident_id,
-            title=title,
-            pipeline_id=pipeline_id,
-            severity=severity,
-            status="open",
-            description=description,
-            diagnosis_id=diagnosis_id,
-            root_cause_category=root_cause_category,
-        )
-        session.add(row)
+    log.info("incident_filed", incident_id=row.id, pipeline_id=pipeline_id, severity=severity)
 
-    log.info("incident_filed", incident_id=incident_id, pipeline_id=pipeline_id, severity=severity)
-
-    return json.dumps({
-        "incident_id": incident_id,
-        "title": title,
-        "pipeline_id": pipeline_id,
-        "severity": severity,
-        "status": "open",
-        "message": f"Incident {incident_id} created successfully",
-        "integrations": {
-            "jira": None,
-            "pagerduty": None,
-            "slack": None,
-            "note": "External integrations available in v0.2",
-        },
-    })
+    return json.dumps(
+        {
+            "incident_id": row.id,
+            "title": title,
+            "pipeline_id": pipeline_id,
+            "severity": severity,
+            "status": row.status,
+            "message": f"Incident {row.id} created successfully",
+            "integrations": {
+                "jira": None,
+                "pagerduty": None,
+                "slack": None,
+                "note": "External integrations available in v0.2",
+            },
+        }
+    )
 
 
 def _parse_time_window(window: str) -> float:
@@ -104,4 +96,7 @@ def _parse_time_window(window: str) -> float:
         return float(window[:-1]) * 24
     if window.endswith("m"):
         return float(window[:-1]) / 60
-    return 24.0  # default
+    try:
+        return float(window)
+    except ValueError:
+        return 24.0

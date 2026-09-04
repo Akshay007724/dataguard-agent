@@ -1,7 +1,10 @@
 from __future__ import annotations
 
+import asyncio
+import json
 import re
 import uuid
+from datetime import UTC, datetime
 from typing import Any
 
 from pydantic import BaseModel, Field
@@ -11,10 +14,12 @@ from dataguard_core.llm.client import LLMClient
 from dataguard_core.logging import get_logger
 from dataguard_core.metrics import llm_deterministic_hits
 from dataguard_core.store import redis
-
 from pipeline_sentinel.detectors.base import BaseDetector
 from pipeline_sentinel.lineage.tracer import LineageTracer
-from pipeline_sentinel.mcp_server.prompts.diagnosis import DIAGNOSIS_SYSTEM_PROMPT, build_diagnosis_prompt
+from pipeline_sentinel.mcp_server.prompts.diagnosis import (
+    DIAGNOSIS_SYSTEM_PROMPT,
+    build_diagnosis_prompt,
+)
 
 log = get_logger(__name__)
 
@@ -22,6 +27,7 @@ _LOCK_TTL = 60  # seconds — prevent concurrent diagnoses of same pipeline
 
 
 # ── Domain models ────────────────────────────────────────────────────────────
+
 
 class IncidentRef(BaseModel):
     id: str
@@ -46,13 +52,43 @@ class DiagnosisResult(BaseModel):
 
 _PATTERNS: list[tuple[str, str, str, float]] = [
     # (pattern_name, root_cause, regex, confidence)
-    ("oom_killed", "oom", r"(?i)(out of memory|OOMKilled|memory limit exceeded|Killed\s+python)", 0.95),
-    ("connection_timeout", "source_unavailable", r"(?i)(connection (timed out|refused|reset)|could not connect|ECONNREFUSED|socket timeout)", 0.90),
-    ("http_503", "source_unavailable", r"(?i)(503 Service Unavailable|upstream connect error|503 error)", 0.88),
+    (
+        "oom_killed",
+        "oom",
+        r"(?i)(out of memory|OOMKilled|memory limit exceeded|Killed\s+python)",
+        0.95,
+    ),
+    (
+        "connection_timeout",
+        "source_unavailable",
+        r"(?i)(connection (timed out|refused|reset)|could not connect|ECONNREFUSED|socket timeout)",
+        0.90,
+    ),
+    (
+        "http_503",
+        "source_unavailable",
+        r"(?i)(503 Service Unavailable|upstream connect error|503 error)",
+        0.88,
+    ),
     ("key_error", "code_error", r"KeyError:\s*['\"](\w+)['\"]", 0.85),
-    ("column_not_found", "schema_drift", r"(?i)(column ['\"]?\w+['\"]? (does not exist|not found|unknown)|AnalysisException.*cannot resolve)", 0.92),
-    ("schema_mismatch", "schema_drift", r"(?i)(schema mismatch|incompatible schema|field .* not in schema)", 0.90),
-    ("upstream_failed", "dependency_failure", r"(?i)(upstream task.*failed|depends on.*which failed|Task.*upstream_failed)", 0.85),
+    (
+        "column_not_found",
+        "schema_drift",
+        r"(?i)(column ['\"]?\w+['\"]? (does not exist|not found|unknown)|AnalysisException.*cannot resolve)",
+        0.92,
+    ),
+    (
+        "schema_mismatch",
+        "schema_drift",
+        r"(?i)(schema mismatch|incompatible schema|field .* not in schema)",
+        0.90,
+    ),
+    (
+        "upstream_failed",
+        "dependency_failure",
+        r"(?i)(upstream task.*failed|depends on.*which failed|Task.*upstream_failed)",
+        0.85,
+    ),
 ]
 
 
@@ -66,6 +102,7 @@ def _run_pattern_matchers(log_text: str) -> tuple[str, float, str] | None:
 
 # ── Main handler ─────────────────────────────────────────────────────────────
 
+
 async def handle_diagnose_failure(
     adapters: list[OrchestratorAdapter],
     tracer: LineageTracer,
@@ -78,14 +115,21 @@ async def handle_diagnose_failure(
 
     # Distributed lock: prevent race on concurrent calls for the same pipeline
     lock_key = f"diagnose:{pipeline_id}"
-    locked = await redis.acquire_lock(lock_key, ttl_seconds=_LOCK_TTL)
-    if not locked:
-        log.info("diagnose_lock_wait", pipeline_id=pipeline_id)
+    token = await redis.acquire_lock(lock_key, ttl_seconds=_LOCK_TTL)
+    if not token:
+        log.warning("diagnose_lock_busy", pipeline_id=pipeline_id)
+        return json.dumps(
+            {
+                "error": "concurrent_diagnosis_in_progress",
+                "message": f"Diagnosis is already in progress for pipeline {pipeline_id!r}",
+                "pipeline_id": pipeline_id,
+            }
+        )
 
     try:
         return await _diagnose(adapters, tracer, detectors, llm, pipeline_id, run_id)
     finally:
-        await redis.release_lock(lock_key)
+        await redis.release_lock(lock_key, token)
 
 
 async def _diagnose(
@@ -96,10 +140,16 @@ async def _diagnose(
     pipeline_id: str,
     run_id: str | None,
 ) -> str:
-    import json
-
-    # 1. Fetch run details
-    adapter = adapters[0] if adapters else None
+    # 1. Select adapter
+    target_adapter = None
+    for ad in adapters:
+        try:
+            await ad.get_pipeline(pipeline_id)
+            target_adapter = ad
+            break
+        except Exception:
+            continue
+    adapter = target_adapter or (adapters[0] if adapters else None)
     if adapter is None:
         return json.dumps({"error": "No orchestrator adapters configured"})
 
@@ -136,9 +186,10 @@ async def _diagnose(
         )
         return result.model_dump_json()
 
-    # 4. Gather context for LLM
-    lineage_summary = await _build_lineage_summary(tracer, pipeline_id)
-    quality_summary = await _build_quality_summary(detectors, pipeline_id)
+    # 4. Gather context for LLM concurrently
+    lineage_task = asyncio.create_task(_build_lineage_summary(tracer, pipeline_id))
+    quality_task = asyncio.create_task(_build_quality_summary(detectors, pipeline_id))
+    lineage_summary, quality_summary = await asyncio.gather(lineage_task, quality_task)
 
     # 5. LLM diagnosis
     log.info("diagnose_llm_call", pipeline_id=pipeline_id)
@@ -159,10 +210,7 @@ async def _diagnose(
         schema=DiagnosisResult,
         system=DIAGNOSIS_SYSTEM_PROMPT,
     )
-    # Ensure pipeline_id and run_id are set correctly from context
-    result = llm_result.model_copy(
-        update={"pipeline_id": pipeline_id, "run_id": actual_run_id, "llm_used": True}
-    )
+    result = llm_result.model_copy(update={"pipeline_id": pipeline_id, "run_id": actual_run_id, "llm_used": True})
     return result.model_dump_json()
 
 
@@ -176,8 +224,8 @@ async def _build_lineage_summary(tracer: LineageTracer, pipeline_id: str) -> str
             status_str = f" [{node.last_run_status}]" if node.last_run_status else ""
             age_str = ""
             if node.last_run_at:
-                from datetime import datetime, timezone
-                age_h = (datetime.now(timezone.utc) - node.last_run_at.replace(tzinfo=timezone.utc if node.last_run_at.tzinfo is None else node.last_run_at.tzinfo)).total_seconds() / 3600
+                node_dt = node.last_run_at.replace(tzinfo=UTC) if node.last_run_at.tzinfo is None else node.last_run_at
+                age_h = (datetime.now(UTC) - node_dt).total_seconds() / 3600
                 age_str = f" (last run {age_h:.1f}h ago)"
             lines.append(f"  {node.type}: {node.name}{status_str}{age_str}")
         return "\n".join(lines)
@@ -189,29 +237,27 @@ async def _build_lineage_summary(tracer: LineageTracer, pipeline_id: str) -> str
 async def _build_quality_summary(detectors: list[BaseDetector], pipeline_id: str) -> str:
     if not detectors:
         return "(no quality detectors configured)"
-    lines = []
-    for detector in detectors:
+
+    async def _eval_detector(detector: BaseDetector) -> str:
         try:
             result = await detector.run(pipeline_id)
             if result.passed:
-                lines.append(f"  {detector.name}: PASS")
-            else:
-                for check in result.failed_checks:
-                    lines.append(f"  {detector.name}/{check.name}: FAIL — {check.message}")
+                return f"  {detector.name}: PASS"
+            failures = ", ".join(f"{c.name} ({c.severity})" for c in result.failed_checks)
+            return f"  {detector.name}: FAIL — {failures}"
         except Exception as exc:
-            lines.append(f"  {detector.name}: ERROR — {exc}")
-    return "\n".join(lines) if lines else "(no checks run)"
+            return f"  {detector.name}: ERROR ({exc})"
+
+    lines = await asyncio.gather(*[_eval_detector(d) for d in detectors])
+    return "\n".join(lines)
 
 
 def _recommend(root_cause: str) -> str:
     recommendations = {
-        "oom": "Increase executor memory limits or reduce partition size. Check for data skew.",
-        "source_unavailable": "Verify source system health. Check network connectivity and credentials. Consider retry.",
-        "code_error": "Review the failing task code. Check for missing keys or unexpected data shapes.",
-        "schema_drift": "Identify which upstream table changed. Update downstream SELECT list or run schema backfill.",
-        "dependency_failure": "Diagnose the upstream pipeline first, then re-run this pipeline after upstream succeeds.",
-        "data_quality": "Review data quality checks for specific failing assertions. Contact data owner.",
-        "sla_violation": "Profile runtime to identify slow steps. Consider increasing resources or optimizing query.",
-        "unknown": "Inspect full logs manually. Consider opening an incident for further investigation.",
+        "oom": "Scale executor memory limit to 2x or optimize batch/partition size in the transformation step.",
+        "source_unavailable": "Check upstream network connectivity, service health dashboard, and verify credentials.",
+        "code_error": "Inspect recent commits to pipeline logic; verify column names and schema assumptions.",
+        "schema_drift": "Trigger schema comparison tool, verify upstream contract changes, and update pipeline DDL.",
+        "dependency_failure": "Trace upstream pipeline runs to identify the failing root task and triage upstream.",
     }
-    return recommendations.get(root_cause, "Review logs and contact the pipeline owner.")
+    return recommendations.get(root_cause, "Review logs, inspect upstream dependencies, and file an incident.")

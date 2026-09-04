@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import asyncio
-import sys
 
 import typer
 import uvicorn
@@ -67,7 +66,10 @@ def diagnose(
 
         adapters, tracer, detectors, llm = _build_dependencies()
         result = await handle_diagnose_failure(
-            adapters, tracer, detectors, llm,
+            adapters,
+            tracer,
+            detectors,
+            llm,
             {"pipeline_id": pipeline_id, "run_id": run_id},
         )
         typer.echo(result)

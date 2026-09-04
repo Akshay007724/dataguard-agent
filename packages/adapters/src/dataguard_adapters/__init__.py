@@ -3,10 +3,10 @@ from dataguard_adapters.argo import ArgoAdapter
 from dataguard_adapters.base import OrchestratorAdapter, PipelineSummary, RunDetails, RunStatus
 
 __all__ = [
+    "AirflowAdapter",
+    "ArgoAdapter",
     "OrchestratorAdapter",
     "PipelineSummary",
     "RunDetails",
     "RunStatus",
-    "AirflowAdapter",
-    "ArgoAdapter",
 ]

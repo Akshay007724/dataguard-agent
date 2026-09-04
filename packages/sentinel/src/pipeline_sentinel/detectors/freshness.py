@@ -1,13 +1,18 @@
 from __future__ import annotations
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
+from typing import Any
 
 import httpx
 
 from dataguard_core.logging import get_logger
 from dataguard_core.metrics import detector_duration
-
-from pipeline_sentinel.detectors.base import BaseDetector, CheckResult, DetectorResult, DetectorSeverity
+from pipeline_sentinel.detectors.base import (
+    BaseDetector,
+    CheckResult,
+    DetectorResult,
+    DetectorSeverity,
+)
 
 log = get_logger(__name__)
 
@@ -29,10 +34,12 @@ class FreshnessDetector(BaseDetector):
         marquez_url: str,
         namespace: str = "default",
         freshness_sla_hours: float = 24.0,
+        marquez_client: Any = None,
     ) -> None:
         self._marquez_url = marquez_url.rstrip("/")
         self._namespace = namespace
         self._sla_hours = freshness_sla_hours
+        self._marquez_client = marquez_client
 
     @property
     def name(self) -> str:
@@ -59,9 +66,9 @@ class FreshnessDetector(BaseDetector):
                 ],
             )
 
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
         if last_modified.tzinfo is None:
-            last_modified = last_modified.replace(tzinfo=timezone.utc)
+            last_modified = last_modified.replace(tzinfo=UTC)
 
         age_hours = (now - last_modified).total_seconds() / 3600
         sla_met = age_hours <= self._sla_hours
@@ -86,6 +93,16 @@ class FreshnessDetector(BaseDetector):
         )
 
     async def _fetch_last_modified(self, dataset_id: str) -> datetime | None:
+        if self._marquez_client:
+            try:
+                data = await self._marquez_client.get_dataset(dataset_id)
+                if data and data.get("updatedAt"):
+                    return datetime.fromisoformat(data["updatedAt"].replace("Z", "+00:00"))
+                return None
+            except Exception as exc:
+                log.warning("marquez_freshness_fetch_failed", dataset_id=dataset_id, error=str(exc))
+                return None
+
         url = f"{self._marquez_url}/api/v1/namespaces/{self._namespace}/datasets/{dataset_id}"
         async with httpx.AsyncClient(timeout=10) as client:
             try:

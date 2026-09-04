@@ -11,34 +11,36 @@ class Settings(BaseSettings):
 
     # State store
     database_url: str = Field(
-        ...,
+        default="postgresql+asyncpg://postgres:postgres@localhost:5432/dataguard",
         description="Async SQLAlchemy DSN, e.g. postgresql+asyncpg://user:pass@host/db",
     )
-    redis_url: str = Field("redis://localhost:6379/0")
+    redis_url: str = Field(default="redis://localhost:6379/0")
 
     # LLM — routed through litellm; prefix determines provider
     # Examples: "anthropic/claude-opus-4-7", "openai/gpt-4o", "ollama/llama3"
-    llm_model: str = Field("anthropic/claude-opus-4-7")
-    anthropic_api_key: SecretStr | None = Field(None)
-    openai_api_key: SecretStr | None = Field(None)
-    azure_openai_api_key: SecretStr | None = Field(None)
-    azure_openai_endpoint: str | None = Field(None)
+    llm_model: str = Field(default="anthropic/claude-opus-4-7")
+    llm_api_base: str | None = Field(default=None, description="Optional custom API base for Ollama/vLLM/LocalAI")
+    anthropic_api_key: SecretStr | None = Field(default=None)
+    openai_api_key: SecretStr | None = Field(default=None)
+    azure_openai_api_key: SecretStr | None = Field(default=None)
+    azure_openai_endpoint: str | None = Field(default=None)
+    groq_api_key: SecretStr | None = Field(default=None)
 
     # Observability
-    log_level: str = Field("INFO")
-    log_format: str = Field("json", description="json | console")
-    otel_exporter_otlp_endpoint: str | None = Field(None)
+    log_level: str = Field(default="INFO")
+    log_format: str = Field(default="json", description="json | console")
+    otel_exporter_otlp_endpoint: str | None = Field(default=None)
 
     # Remediation guards
-    auto_remediation_enabled: bool = Field(False)
-    auto_remediation_max_risk: str = Field("low", description="low | medium | high")
+    auto_remediation_enabled: bool = Field(default=False)
+    auto_remediation_max_risk: str = Field(default="low", description="low | medium | high")
 
     # Cache TTL
-    pipeline_status_cache_ttl: int = Field(60, description="Redis TTL in seconds")
+    pipeline_status_cache_ttl: int = Field(default=60, description="Redis TTL in seconds")
 
     # Lineage
-    openlineage_url: str = Field("http://localhost:5000")
-    openlineage_namespace: str = Field("default")
+    openlineage_url: str = Field(default="http://localhost:5000")
+    openlineage_namespace: str = Field(default="default")
 
 
-settings: Settings = Settings()  # type: ignore[call-arg]
+settings: Settings = Settings()

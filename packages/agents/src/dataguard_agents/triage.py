@@ -1,27 +1,18 @@
-"""TriageAgent — autonomous multi-pipeline triage using an agentic tool-use loop.
-
-The agent discovers failing pipelines, diagnoses each one, proposes remediations,
-and files incidents for high/critical failures — all without human intervention.
-
-Usage:
-    ctx = AgentContext(adapters, tracer, detectors, llm)
-    agent = TriageAgent(ctx)
-    report = await agent.run()
-"""
+"""TriageAgent — autonomous multi-pipeline triage using an agentic tool-use loop."""
 
 from __future__ import annotations
 
+import asyncio
 import json
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import Any
 
 import litellm
 
-from dataguard_core.logging import get_logger
-from dataguard_core.metrics import mcp_tool_duration
-
-from dataguard_agents.base import AGENT_TOOLS, AgentContext, ToolRegistry, _MAX_TURNS
+from dataguard_agents.base import _MAX_TURNS, AGENT_TOOLS, AgentContext, ToolRegistry
 from dataguard_agents.report import TriageReport, build_report_from_conversation
+from dataguard_core.logging import get_logger
+from dataguard_core.metrics import llm_tokens, mcp_tool_duration
 
 log = get_logger(__name__)
 
@@ -70,15 +61,7 @@ When done, output a JSON object:
 
 
 class TriageAgent:
-    """Autonomous pipeline triage agent.
-
-    Runs an agentic loop using the configured LLM with tool use.
-    Calls MCP tools directly (not via MCP protocol) for efficiency.
-
-    Args:
-        ctx: Shared agent context with adapters, detectors, tracer, LLM.
-        max_turns: Safety cap on tool-use turns (default 30).
-    """
+    """Autonomous pipeline triage agent."""
 
     def __init__(self, ctx: AgentContext, max_turns: int = _MAX_TURNS) -> None:
         self._ctx = ctx
@@ -86,19 +69,13 @@ class TriageAgent:
         self._max_turns = max_turns
 
     async def run(self, scope: str | None = None) -> TriageReport:
-        """Run a full triage pass.
-
-        Args:
-            scope: Optional pipeline ID to triage a single pipeline.
-                   If None, discovers and triages all failing pipelines.
-
-        Returns:
-            TriageReport with diagnoses, incidents filed, and summary.
-        """
-        started_at = datetime.now(timezone.utc)
+        started_at = datetime.now(UTC)
 
         if scope:
-            initial = f"Triage the pipeline '{scope}'. Diagnose its failure, propose remediation, and file an incident if severity is high or critical."
+            initial = (
+                f"Triage the pipeline '{scope}'. Diagnose its failure, propose remediation, "
+                "and file an incident if severity is high or critical."
+            )
         else:
             initial = "Triage all failing or degraded data pipelines. Follow the protocol."
 
@@ -124,56 +101,79 @@ class TriageAgent:
         while turns < self._max_turns:
             turns += 1
 
+            model_name = getattr(self._ctx.llm, "model", getattr(self._ctx.llm, "_model", "unknown"))
+
             response = await litellm.acompletion(
-                model=self._ctx.llm._model,
+                model=model_name,
                 messages=messages,
                 tools=AGENT_TOOLS,
                 tool_choice="auto",
                 temperature=0.0,
             )
 
-            choice = response.choices[0]
+            # Track tokens
+            usage = getattr(response, "usage", None)
+            if usage:
+                in_tok = getattr(usage, "prompt_tokens", 0)
+                out_tok = getattr(usage, "completion_tokens", 0)
+                if isinstance(in_tok, int | float) and isinstance(out_tok, int | float):
+                    provider = model_name.split("/")[0] if "/" in model_name else "unknown"
+                    llm_tokens.labels(provider=provider, model=model_name, direction="input").inc(in_tok)
+                    llm_tokens.labels(provider=provider, model=model_name, direction="output").inc(out_tok)
+
+            choices = getattr(response, "choices", None)
+            if not choices:
+                break
+            choice = choices[0]
             message = choice.message
-            finish_reason = choice.finish_reason
+            finish_reason = getattr(choice, "finish_reason", "stop")
 
             # Append assistant message to history
             messages.append(message.model_dump(exclude_none=True))
 
-            if finish_reason == "stop" or finish_reason == "end_turn":
+            if finish_reason in ("stop", "end_turn"):
                 final_content = message.content or ""
                 log.info("triage_agent_done", turns=turns)
                 break
 
-            # Execute tool calls
+            # Execute tool calls concurrently
             tool_calls = message.tool_calls or []
             if not tool_calls:
                 final_content = message.content or ""
                 break
 
-            for tc in tool_calls:
-                with mcp_tool_duration.labels(tool=tc.function.name).time():
+            async def _run_tool(tc: Any) -> dict[str, Any]:
+                fn = getattr(tc, "function", None)
+                fn_name = (getattr(fn, "name", "") or "") if fn else ""
+                raw_args = (getattr(fn, "arguments", "{}") or "{}") if fn else "{}"
+                tc_id = getattr(tc, "id", "tc") or "tc"
+                with mcp_tool_duration.labels(tool=fn_name).time():
                     try:
-                        args = json.loads(tc.function.arguments or "{}")
-                        result = await self._registry.execute(tc.function.name, args)
+                        args = json.loads(raw_args)
+                        res = await self._registry.execute(fn_name, args)
                     except Exception as exc:
-                        result = json.dumps({"error": str(exc)})
-                        log.warning("agent_tool_error", tool=tc.function.name, error=str(exc))
-
-                messages.append({
+                        res = json.dumps({"error": str(exc)})
+                        log.warning("agent_tool_error", tool=fn_name, error=str(exc))
+                return {
                     "role": "tool",
-                    "tool_call_id": tc.id,
-                    "content": result,
-                })
+                    "tool_call_id": tc_id,
+                    "content": res,
+                }
+
+            tool_results = await asyncio.gather(*[_run_tool(tc) for tc in tool_calls])
+            messages.extend(tool_results)
         else:
             log.warning("triage_agent_max_turns", max_turns=self._max_turns)
-            final_content = json.dumps({
-                "error": f"Agent reached max_turns={self._max_turns}",
-                "partial_conversation_turns": turns,
-            })
+            final_content = json.dumps(
+                {
+                    "error": f"Agent reached max_turns={self._max_turns}",
+                    "partial_conversation_turns": turns,
+                }
+            )
 
         return build_report_from_conversation(
             final_content=final_content,
             messages=messages,
             started_at=started_at,
-            completed_at=datetime.now(timezone.utc),
+            completed_at=datetime.now(UTC),
         )

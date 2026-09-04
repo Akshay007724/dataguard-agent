@@ -1,7 +1,5 @@
 from __future__ import annotations
 
-import pytest
-
 from pipeline_sentinel.detectors.base import DetectorSeverity
 from pipeline_sentinel.detectors.schema_drift import SchemaDriftDetector
 from pipeline_sentinel.detectors.volume_anomaly import VolumeAnomalyDetector

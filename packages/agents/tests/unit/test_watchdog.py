@@ -1,13 +1,11 @@
 from __future__ import annotations
 
-import json
-from datetime import datetime, timezone
 from typing import Any
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
-from dataguard_agents.watchdog import WatchdogAgent, _TRIAGE_DEBOUNCE_KEY, _TRIAGE_DEBOUNCE_TTL
+from dataguard_agents.watchdog import _TRIAGE_DEBOUNCE_KEY, _TRIAGE_DEBOUNCE_TTL, WatchdogAgent
 
 
 def _make_ctx(adapters: list[Any] | None = None) -> MagicMock:
@@ -23,8 +21,6 @@ def _make_pipeline(pid: str) -> MagicMock:
 
 
 def _make_adapter(pipeline_ids: list[str]) -> MagicMock:
-    from dataguard_adapters.base import RunStatus  # noqa: PLC0415
-
     adapter = MagicMock()
     adapter.orchestrator_name = "airflow"
     adapter.list_pipelines = AsyncMock(return_value=[_make_pipeline(pid) for pid in pipeline_ids])
@@ -45,7 +41,9 @@ class TestWatchdogDebounce:
         watchdog = WatchdogAgent(ctx)
 
         with (
-            patch("dataguard_agents.watchdog.redis.cache_get", new=AsyncMock(return_value={"triaged_at": "2024-01-01"})),
+            patch(
+                "dataguard_agents.watchdog.redis.cache_get", new=AsyncMock(return_value={"triaged_at": "2024-01-01"})
+            ),
             patch("dataguard_agents.watchdog.redis.cache_set", new=AsyncMock()) as mock_set,
             patch("dataguard_agents.watchdog.TriageAgent") as MockAgent,
         ):

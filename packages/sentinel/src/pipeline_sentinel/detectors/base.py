@@ -40,7 +40,13 @@ class DetectorResult:
 
     @property
     def highest_severity(self) -> DetectorSeverity | None:
-        order = [DetectorSeverity.CRITICAL, DetectorSeverity.HIGH, DetectorSeverity.MEDIUM, DetectorSeverity.LOW, DetectorSeverity.INFO]
+        order = [
+            DetectorSeverity.CRITICAL,
+            DetectorSeverity.HIGH,
+            DetectorSeverity.MEDIUM,
+            DetectorSeverity.LOW,
+            DetectorSeverity.INFO,
+        ]
         for sev in order:
             if any(c.severity == sev and not c.passed for c in self.checks):
                 return sev

@@ -4,7 +4,15 @@ from datetime import datetime
 
 import httpx
 
-from dataguard_adapters.base import OrchestratorAdapter, PipelineSummary, RunDetails, RunStatus
+from dataguard_adapters.base import (
+    OrchestratorAdapter,
+    OrchestratorConnectionError,
+    PipelineNotFoundError,
+    PipelineSummary,
+    RunDetails,
+    RunNotFoundError,
+    RunStatus,
+)
 from dataguard_core.logging import get_logger
 from dataguard_core.metrics import adapter_request_duration
 
@@ -24,12 +32,6 @@ class AirflowAdapter(OrchestratorAdapter):
     """Airflow REST API v2 adapter.
 
     Requires a service account with Viewer role. Never requests write permissions.
-
-    Args:
-        base_url: Airflow webserver URL, e.g. http://airflow:8080.
-        username: Basic auth username.
-        password: Basic auth password.
-        timeout: Per-request timeout in seconds.
     """
 
     def __init__(
@@ -38,8 +40,9 @@ class AirflowAdapter(OrchestratorAdapter):
         username: str,
         password: str,
         timeout: int = 30,
+        client: httpx.AsyncClient | None = None,
     ) -> None:
-        self._client = httpx.AsyncClient(
+        self._client = client or httpx.AsyncClient(
             base_url=f"{base_url.rstrip('/')}/api/v1",
             auth=(username, password),
             timeout=timeout,
@@ -59,8 +62,11 @@ class AirflowAdapter(OrchestratorAdapter):
             params: dict[str, str | int] = {"limit": 200}
             if tag:
                 params["tags"] = tag
-            resp = await self._client.get("/dags", params=params)
-            resp.raise_for_status()
+            try:
+                resp = await self._client.get("/dags", params=params)
+                resp.raise_for_status()
+            except httpx.HTTPError as exc:
+                raise OrchestratorConnectionError(f"Airflow connection failed: {exc}") from exc
 
         dags = resp.json().get("dags", [])
         summaries = [self._dag_to_summary(d) for d in dags]
@@ -72,14 +78,24 @@ class AirflowAdapter(OrchestratorAdapter):
 
     async def get_pipeline(self, pipeline_id: str) -> PipelineSummary:
         with adapter_request_duration.labels(adapter="airflow", operation="get_dag").time():
-            resp = await self._client.get(f"/dags/{pipeline_id}")
-            resp.raise_for_status()
+            try:
+                resp = await self._client.get(f"/dags/{pipeline_id}")
+                if resp.status_code == 404:
+                    raise PipelineNotFoundError(f"Pipeline {pipeline_id!r} not found in Airflow")
+                resp.raise_for_status()
+            except httpx.HTTPError as exc:
+                raise OrchestratorConnectionError(f"Airflow connection failed: {exc}") from exc
         return self._dag_to_summary(resp.json())
 
     async def get_run(self, pipeline_id: str, run_id: str) -> RunDetails:
         with adapter_request_duration.labels(adapter="airflow", operation="get_dag_run").time():
-            resp = await self._client.get(f"/dags/{pipeline_id}/dagRuns/{run_id}")
-            resp.raise_for_status()
+            try:
+                resp = await self._client.get(f"/dags/{pipeline_id}/dagRuns/{run_id}")
+                if resp.status_code == 404:
+                    raise RunNotFoundError(f"Run {run_id!r} not found for pipeline {pipeline_id!r}")
+                resp.raise_for_status()
+            except httpx.HTTPError as exc:
+                raise OrchestratorConnectionError(f"Airflow connection failed: {exc}") from exc
 
         run = resp.json()
         failing_task = await self._get_failing_task(pipeline_id, run_id)
@@ -88,16 +104,21 @@ class AirflowAdapter(OrchestratorAdapter):
     async def get_latest_run(self, pipeline_id: str) -> RunDetails:
         history = await self.get_run_history(pipeline_id, limit=1)
         if not history:
-            raise ValueError(f"No runs found for pipeline {pipeline_id!r}")
+            raise RunNotFoundError(f"No runs found for pipeline {pipeline_id!r}")
         return history[0]
 
     async def get_run_history(self, pipeline_id: str, limit: int = 10) -> list[RunDetails]:
         with adapter_request_duration.labels(adapter="airflow", operation="list_dag_runs").time():
-            resp = await self._client.get(
-                f"/dags/{pipeline_id}/dagRuns",
-                params={"limit": limit, "order_by": "-start_date"},
-            )
-            resp.raise_for_status()
+            try:
+                resp = await self._client.get(
+                    f"/dags/{pipeline_id}/dagRuns",
+                    params={"limit": limit, "order_by": "-start_date"},
+                )
+                if resp.status_code == 404:
+                    raise PipelineNotFoundError(f"Pipeline {pipeline_id!r} not found in Airflow")
+                resp.raise_for_status()
+            except httpx.HTTPError as exc:
+                raise OrchestratorConnectionError(f"Airflow connection failed: {exc}") from exc
 
         runs = resp.json().get("dag_runs", [])
         return [self._run_to_details(r, pipeline_id) for r in runs]
@@ -116,23 +137,31 @@ class AirflowAdapter(OrchestratorAdapter):
                 return "(no failed task instances found)"
 
         with adapter_request_duration.labels(adapter="airflow", operation="get_task_log").time():
-            resp = await self._client.get(
-                f"/dags/{pipeline_id}/dagRuns/{run_id}/taskInstances/{task_id}/logs/1",
-                headers={"Accept": "text/plain"},
-            )
-            resp.raise_for_status()
+            try:
+                resp = await self._client.get(
+                    f"/dags/{pipeline_id}/dagRuns/{run_id}/taskInstances/{task_id}/logs/1",
+                    headers={"Accept": "text/plain"},
+                )
+                if resp.status_code == 404:
+                    return f"(logs not found for task {task_id})"
+                resp.raise_for_status()
+            except httpx.HTTPError as exc:
+                raise OrchestratorConnectionError(f"Airflow connection failed: {exc}") from exc
 
         return self._trim_log(resp.text, head_lines, tail_lines)
 
     async def _get_failing_task(self, pipeline_id: str, run_id: str) -> str | None:
-        resp = await self._client.get(
-            f"/dags/{pipeline_id}/dagRuns/{run_id}/taskInstances",
-            params={"state": "failed"},
-        )
-        if resp.status_code != 200:
+        try:
+            resp = await self._client.get(
+                f"/dags/{pipeline_id}/dagRuns/{run_id}/taskInstances",
+                params={"state": "failed"},
+            )
+            if resp.status_code != 200:
+                return None
+            instances = resp.json().get("task_instances", [])
+            return instances[0]["task_id"] if instances else None
+        except httpx.HTTPError:
             return None
-        instances = resp.json().get("task_instances", [])
-        return instances[0]["task_id"] if instances else None
 
     @staticmethod
     def _dag_to_summary(dag: dict) -> PipelineSummary:  # type: ignore[type-arg]
@@ -142,9 +171,9 @@ class AirflowAdapter(OrchestratorAdapter):
             orchestrator="airflow",
             owner=", ".join(dag.get("owners", []) or []) or None,
             tags=[t["name"] for t in dag.get("tags", []) or []],
-            last_run_status=_STATUS_MAP.get(
-                (dag.get("last_dag_run_state") or ""), RunStatus.UNKNOWN
-            ) if dag.get("last_dag_run_state") else None,
+            last_run_status=_STATUS_MAP.get((dag.get("last_dag_run_state") or ""), RunStatus.UNKNOWN)
+            if dag.get("last_dag_run_state")
+            else None,
             last_run_at=_parse_dt(dag.get("last_run")),
             schedule=dag.get("schedule_interval") or dag.get("timetable_summary"),
             is_paused=dag.get("is_paused", False),
@@ -176,6 +205,9 @@ class AirflowAdapter(OrchestratorAdapter):
 
     async def close(self) -> None:
         await self._client.aclose()
+
+    async def aclose(self) -> None:
+        await self.close()
 
 
 def _parse_dt(value: str | None) -> datetime | None:

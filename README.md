@@ -77,21 +77,37 @@ LLM Client (Claude, Cursor, GPT, etc.)
         │  MCP Protocol
         ▼
 ┌─────────────────────────────────────┐
+│     dataguard-agents (Runtime)      │
+│  (TriageAgent, Watchdog, Reports)   │
+└──────────────────┬──────────────────┘
+                   ▼
+┌─────────────────────────────────────┐
 │     Pipeline Sentinel MCP Server    │
-│    (packages/sentinel)              │
+│  (packages/sentinel: Tools, FastMCP)│
 └──────────┬──────────────────────────┘
            │
   ┌────────┼──────────────┐
   ▼        ▼              ▼
 Adapters  Detectors    Lineage
 (Airflow  (Schema,     (OpenLineage
- Argo)     Volume,      / Marquez)
-           Freshness)
+ Argo,     Volume,      / Marquez)
+ Registry) Freshness)
   │
-  └─── dataguard-core (LLM via litellm, Postgres, Redis, OTel)
+  └─── dataguard-core (LLM via litellm, Postgres Repositories, Redis Locks, OTel)
 ```
 
 See [ARCHITECTURE.md](ARCHITECTURE.md) for design rationale and request lifecycle.
+
+---
+
+## Deployment
+
+DataGuard Agent supports multiple open-source deployment topologies:
+- **Local Evaluation:** `make demo` (Airflow, Postgres, Redis, Marquez, Prometheus, Grafana)
+- **Production Kubernetes:** Helm chart at `deploy/helm/dataguard-sentinel/`
+- **GitOps Continuous Delivery:** ArgoCD Application manifest at `deploy/argocd/application.yaml`
+
+See the complete [Open-Source Deployment Guide](docs/deployment.md).
 
 ---
 

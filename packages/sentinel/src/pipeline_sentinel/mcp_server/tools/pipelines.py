@@ -6,7 +6,7 @@ from typing import Any
 from dataguard_adapters.base import OrchestratorAdapter, RunStatus
 from dataguard_core.logging import get_logger
 from dataguard_core.store import redis
-from dataguard_core.config import settings
+from pipeline_sentinel.config import settings
 
 log = get_logger(__name__)
 
@@ -32,17 +32,19 @@ async def handle_list_pipelines(
         try:
             pipelines = await adapter.list_pipelines(tag=tag, status=status)
             for p in pipelines:
-                results.append({
-                    "id": p.id,
-                    "name": p.name,
-                    "orchestrator": p.orchestrator,
-                    "owner": p.owner,
-                    "tags": p.tags,
-                    "last_run_status": p.last_run_status,
-                    "last_run_at": p.last_run_at.isoformat() if p.last_run_at else None,
-                    "schedule": p.schedule,
-                    "is_paused": p.is_paused,
-                })
+                results.append(
+                    {
+                        "id": p.id,
+                        "name": p.name,
+                        "orchestrator": p.orchestrator,
+                        "owner": p.owner,
+                        "tags": p.tags,
+                        "last_run_status": p.last_run_status,
+                        "last_run_at": p.last_run_at.isoformat() if p.last_run_at else None,
+                        "schedule": p.schedule,
+                        "is_paused": p.is_paused,
+                    }
+                )
         except Exception as exc:
             log.warning("list_pipelines_adapter_error", adapter=adapter.orchestrator_name, error=str(exc))
 
@@ -114,18 +116,21 @@ async def handle_get_failure_details(
 
     logs = await adapter.get_run_logs(pipeline_id, run.run_id, task_id=run.failing_task)
 
-    return json.dumps({
-        "pipeline_id": pipeline_id,
-        "run_id": run.run_id,
-        "status": run.status,
-        "started_at": run.started_at.isoformat() if run.started_at else None,
-        "ended_at": run.ended_at.isoformat() if run.ended_at else None,
-        "duration_seconds": run.duration_seconds,
-        "failing_task": run.failing_task,
-        "error_message": run.error_message,
-        "retry_number": run.retry_number,
-        "log_excerpt": logs,
-    }, default=str)
+    return json.dumps(
+        {
+            "pipeline_id": pipeline_id,
+            "run_id": run.run_id,
+            "status": run.status,
+            "started_at": run.started_at.isoformat() if run.started_at else None,
+            "ended_at": run.ended_at.isoformat() if run.ended_at else None,
+            "duration_seconds": run.duration_seconds,
+            "failing_task": run.failing_task,
+            "error_message": run.error_message,
+            "retry_number": run.retry_number,
+            "log_excerpt": logs,
+        },
+        default=str,
+    )
 
 
 def _find_adapter(adapters: list[OrchestratorAdapter], pipeline_id: str) -> OrchestratorAdapter | None:

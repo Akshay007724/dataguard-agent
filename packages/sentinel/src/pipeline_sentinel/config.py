@@ -29,4 +29,4 @@ class SentinelSettings(CoreSettings):
     incident_id_prefix: str = "INC"
 
 
-settings: SentinelSettings = SentinelSettings()  # type: ignore[call-arg]
+settings: SentinelSettings = SentinelSettings()

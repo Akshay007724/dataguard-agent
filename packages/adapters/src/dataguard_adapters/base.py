@@ -4,6 +4,23 @@ from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
 from datetime import datetime
 from enum import StrEnum
+from typing import Any, Self
+
+
+class AdapterError(Exception):
+    """Base exception for orchestrator adapter operations."""
+
+
+class PipelineNotFoundError(AdapterError):
+    """Raised when a requested pipeline/DAG does not exist."""
+
+
+class RunNotFoundError(AdapterError):
+    """Raised when a requested run does not exist."""
+
+
+class OrchestratorConnectionError(AdapterError):
+    """Raised when communication with an orchestrator fails."""
 
 
 class RunStatus(StrEnum):
@@ -61,22 +78,14 @@ class OrchestratorAdapter(ABC):
         tag: str | None = None,
         status: RunStatus | None = None,
     ) -> list[PipelineSummary]:
-        """Return all pipelines visible to this adapter.
-
-        Args:
-            tag: Filter to pipelines with this tag.
-            status: Filter to pipelines whose last run matches this status.
-
-        Returns:
-            List of pipeline summaries, ordered by last run descending.
-        """
+        """Return all pipelines visible to this adapter."""
 
     @abstractmethod
     async def get_pipeline(self, pipeline_id: str) -> PipelineSummary:
         """Return metadata for a single pipeline.
 
         Raises:
-            ValueError: If the pipeline does not exist.
+            PipelineNotFoundError: If the pipeline does not exist.
         """
 
     @abstractmethod
@@ -84,7 +93,7 @@ class OrchestratorAdapter(ABC):
         """Return details for a specific run.
 
         Raises:
-            ValueError: If the run does not exist.
+            RunNotFoundError: If the run does not exist.
         """
 
     @abstractmethod
@@ -92,16 +101,12 @@ class OrchestratorAdapter(ABC):
         """Return details for the most recent run.
 
         Raises:
-            ValueError: If the pipeline has no runs.
+            RunNotFoundError: If the pipeline has no runs.
         """
 
     @abstractmethod
     async def get_run_history(self, pipeline_id: str, limit: int = 10) -> list[RunDetails]:
-        """Return the N most recent runs, newest first.
-
-        Args:
-            limit: Maximum number of runs to return.
-        """
+        """Return the N most recent runs, newest first."""
 
     @abstractmethod
     async def get_run_logs(
@@ -112,14 +117,16 @@ class OrchestratorAdapter(ABC):
         head_lines: int = 50,
         tail_lines: int = 100,
     ) -> str:
-        """Return a log excerpt for a run.
+        """Return a log excerpt for a run."""
 
-        Fetches head_lines from the start and tail_lines from the end,
-        inserting an omission marker if the log was truncated.
+    async def aclose(self) -> None:  # noqa: B027
+        """Release any network connections and client sessions."""
 
-        Args:
-            task_id: If None, the adapter selects the failing task automatically.
-        """
+    async def __aenter__(self) -> Self:
+        return self
+
+    async def __aexit__(self, exc_type: Any, exc_val: Any, exc_tb: Any) -> None:
+        await self.aclose()
 
     @staticmethod
     def _trim_log(raw: str, head: int, tail: int) -> str:

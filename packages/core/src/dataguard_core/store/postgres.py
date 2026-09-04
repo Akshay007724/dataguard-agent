@@ -1,9 +1,9 @@
 from __future__ import annotations
 
 import uuid
+from collections.abc import AsyncGenerator
 from contextlib import asynccontextmanager
 from datetime import datetime
-from typing import AsyncGenerator
 
 from sqlalchemy import DateTime, Float, String, Text, func
 from sqlalchemy.ext.asyncio import (
@@ -15,6 +15,7 @@ from sqlalchemy.ext.asyncio import (
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
 
 # ── ORM base ────────────────────────────────────────────────────────────────
+
 
 class Base(DeclarativeBase):
     pass
@@ -84,6 +85,14 @@ _session_factory: async_sessionmaker[AsyncSession] | None = None
 
 def init_engine(database_url: str) -> None:
     global _engine, _session_factory
+    if database_url.startswith("postgres://"):
+        database_url = database_url.replace("postgres://", "postgresql+asyncpg://", 1)
+    elif database_url.startswith("postgresql://") and not database_url.startswith("postgresql+"):
+        database_url = database_url.replace("postgresql://", "postgresql+asyncpg://", 1)
+
+    if "sslmode=" in database_url:
+        database_url = database_url.replace("sslmode=", "ssl=")
+
     _engine = create_async_engine(
         database_url,
         pool_size=10,
@@ -116,3 +125,11 @@ async def get_session() -> AsyncGenerator[AsyncSession, None]:
         except Exception:
             await session.rollback()
             raise
+
+
+async def dispose_engine() -> None:
+    global _engine, _session_factory
+    if _engine is not None:
+        await _engine.dispose()
+        _engine = None
+        _session_factory = None

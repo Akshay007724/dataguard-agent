@@ -31,7 +31,7 @@ jobs:
           enable-cache: true
           cache-dependency-glob: uv.lock
       - run: uv sync --frozen --all-packages
-      - run: uv run mypy packages/
+      - run: uv run mypy -p dataguard_core -p dataguard_adapters -p pipeline_sentinel -p dataguard_agents
       - run: uv run pyright packages/
 
   test-unit:

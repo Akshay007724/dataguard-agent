@@ -20,6 +20,8 @@ services:
       OPENLINEAGE_URL: http://marquez:5000
       LOG_LEVEL: INFO
       LOG_FORMAT: json
+      LLM_MODEL: ${LLM_MODEL:-ollama/qwen2.5-coder:1.5b}
+      LLM_API_BASE: ${LLM_API_BASE:-http://ollama:11434}
     depends_on:
       postgres:
         condition: service_healthy
@@ -168,9 +170,20 @@ services:
     depends_on:
       - prometheus
 
+  # ── Local Open-Source LLM (Zero API Key) ─────────────────────────────────
+  ollama:
+    image: ollama/ollama:latest
+    container_name: dataguard-ollama
+    ports:
+      - "11434:11434"
+    volumes:
+      - ollama-data:/root/.ollama
+    restart: unless-stopped
+
 volumes:
   postgres-data:
   redis-data:
   airflow-db-data:
   prometheus-data:
   grafana-data:
+  ollama-data:

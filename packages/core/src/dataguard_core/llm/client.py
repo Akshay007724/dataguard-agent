@@ -25,11 +25,24 @@ class LLMClient:
         timeout: Per-request timeout in seconds.
     """
 
-    def __init__(self, model: str, api_key: str | None = None, timeout: int = 120) -> None:
+    def __init__(self, model: str, api_key: str | None = None, api_base: str | None = None, timeout: int = 120) -> None:
         self._model = model
         self._api_key = api_key
+        self._api_base = api_base
         self._timeout = timeout
         self._provider = model.split("/")[0] if "/" in model else "unknown"
+
+    @property
+    def model(self) -> str:
+        return self._model
+
+    @property
+    def api_base(self) -> str | None:
+        return self._api_base
+
+    @property
+    def provider(self) -> str:
+        return self._provider
 
     @retry(
         stop=stop_after_attempt(3),
@@ -56,10 +69,17 @@ class LLMClient:
         }
         if self._api_key:
             kwargs["api_key"] = self._api_key
+        if self._api_base:
+            kwargs["api_base"] = self._api_base
 
         response = await litellm.acompletion(**kwargs)
         return self._build_response(response)
 
+    @retry(
+        stop=stop_after_attempt(3),
+        wait=wait_exponential(multiplier=1, min=2, max=15),
+        reraise=True,
+    )
     async def complete_structured(
         self,
         prompt: str,
@@ -91,10 +111,50 @@ class LLMClient:
         }
         if self._api_key:
             kwargs["api_key"] = self._api_key
+        if self._api_base:
+            kwargs["api_base"] = self._api_base
 
         response = await litellm.acompletion(**kwargs)
         llm_response = self._build_response(response)
         return schema.model_validate_json(llm_response.content)
+
+    @retry(
+        stop=stop_after_attempt(3),
+        wait=wait_exponential(multiplier=1, min=2, max=15),
+        reraise=True,
+    )
+    async def complete_with_tools(
+        self,
+        messages: list[dict[str, Any]],
+        tools: list[dict[str, Any]],
+        temperature: float = 0.0,
+        tool_choice: str = "auto",
+    ) -> Any:
+        """Agentic tool-use completion with metrics tracking and retries."""
+        kwargs: dict[str, Any] = {
+            "model": self._model,
+            "messages": messages,
+            "tools": tools,
+            "tool_choice": tool_choice,
+            "temperature": temperature,
+            "timeout": self._timeout,
+        }
+        if self._api_key:
+            kwargs["api_key"] = self._api_key
+        if self._api_base:
+            kwargs["api_base"] = self._api_base
+
+        response = await litellm.acompletion(**kwargs)
+
+        usage = getattr(response, "usage", None)
+        if usage:
+            input_tokens = getattr(usage, "prompt_tokens", 0) or 0
+            output_tokens = getattr(usage, "completion_tokens", 0) or 0
+            llm_tokens.labels(provider=self._provider, model=self._model, direction="input").inc(input_tokens)
+            llm_tokens.labels(provider=self._provider, model=self._model, direction="output").inc(output_tokens)
+            log.debug("llm_tool_completion", model=self._model, in_tok=input_tokens, out_tok=output_tokens)
+
+        return response
 
     def _build_response(self, response: Any) -> LLMResponse:
         content: str = response.choices[0].message.content or ""

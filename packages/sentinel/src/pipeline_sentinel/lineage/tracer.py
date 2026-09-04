@@ -3,8 +3,12 @@ from __future__ import annotations
 from datetime import datetime
 
 from dataguard_core.logging import get_logger
-
-from pipeline_sentinel.lineage.openlineage import LineageEdge, LineageGraph, LineageNode, MarquezClient
+from pipeline_sentinel.lineage.openlineage import (
+    LineageEdge,
+    LineageGraph,
+    LineageNode,
+    MarquezClient,
+)
 
 log = get_logger(__name__)
 

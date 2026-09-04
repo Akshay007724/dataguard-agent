@@ -1,14 +1,16 @@
 from __future__ import annotations
 
 import json
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
-import pytest
+from dataguard_agents.report import (
+    TriageReport,
+    _extract_incident_ids,
+    build_report_from_conversation,
+)
 
-from dataguard_agents.report import TriageReport, _extract_incident_ids, build_report_from_conversation
-
-_START = datetime(2024, 6, 1, 10, 0, 0, tzinfo=timezone.utc)
-_END = datetime(2024, 6, 1, 10, 5, 0, tzinfo=timezone.utc)
+_START = datetime(2024, 6, 1, 10, 0, 0, tzinfo=UTC)
+_END = datetime(2024, 6, 1, 10, 5, 0, tzinfo=UTC)
 
 
 def _build(content: str, messages: list[dict] | None = None) -> TriageReport:

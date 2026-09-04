@@ -1,14 +1,18 @@
 from __future__ import annotations
 
-import json
+from typing import Any
 
 import httpx
 
 from dataguard_core.logging import get_logger
 from dataguard_core.metrics import detector_duration
 from dataguard_core.store import redis
-
-from pipeline_sentinel.detectors.base import BaseDetector, CheckResult, DetectorResult, DetectorSeverity
+from pipeline_sentinel.detectors.base import (
+    BaseDetector,
+    CheckResult,
+    DetectorResult,
+    DetectorSeverity,
+)
 
 log = get_logger(__name__)
 
@@ -28,9 +32,10 @@ class SchemaDriftDetector(BaseDetector):
         namespace: OpenLineage namespace to query.
     """
 
-    def __init__(self, marquez_url: str, namespace: str = "default") -> None:
+    def __init__(self, marquez_url: str, namespace: str = "default", marquez_client: Any = None) -> None:
         self._marquez_url = marquez_url.rstrip("/")
         self._namespace = namespace
+        self._marquez_client = marquez_client
 
     @property
     def name(self) -> str:
@@ -83,6 +88,17 @@ class SchemaDriftDetector(BaseDetector):
 
     async def _fetch_current_schema(self, dataset_id: str) -> dict[str, str] | None:
         """Returns {column_name: type} dict from Marquez."""
+        if self._marquez_client:
+            try:
+                data = await self._marquez_client.get_dataset(dataset_id)
+                if data is None:
+                    return None
+                fields = data.get("fields") or []
+                return {f["name"]: f.get("type", "unknown") for f in fields}
+            except Exception as exc:
+                log.warning("marquez_schema_fetch_failed", dataset_id=dataset_id, error=str(exc))
+                return None
+
         url = f"{self._marquez_url}/api/v1/namespaces/{self._namespace}/datasets/{dataset_id}"
         async with httpx.AsyncClient(timeout=10) as client:
             try:
@@ -107,48 +123,53 @@ class SchemaDriftDetector(BaseDetector):
 
         removed = set(baseline) - set(current)
         added = set(current) - set(baseline)
-        type_changed = {
-            col for col in (set(baseline) & set(current))
-            if baseline[col] != current[col]
-        }
+        type_changed = {col for col in (set(baseline) & set(current)) if baseline[col] != current[col]}
 
         if not removed and not added and not type_changed:
-            checks.append(CheckResult(
-                name="schema_unchanged",
-                passed=True,
-                severity=DetectorSeverity.INFO,
-                message=f"Schema matches baseline ({len(current)} columns)",
-            ))
+            checks.append(
+                CheckResult(
+                    name="schema_unchanged",
+                    passed=True,
+                    severity=DetectorSeverity.INFO,
+                    message=f"Schema matches baseline ({len(current)} columns)",
+                )
+            )
             return checks
 
         if removed:
-            checks.append(CheckResult(
-                name="columns_removed",
-                passed=False,
-                severity=DetectorSeverity.CRITICAL,
-                message=f"Columns removed from {dataset_id}: {sorted(removed)}",
-                actual=str(sorted(set(current.keys()))),
-                expected=str(sorted(set(baseline.keys()))),
-            ))
+            checks.append(
+                CheckResult(
+                    name="columns_removed",
+                    passed=False,
+                    severity=DetectorSeverity.CRITICAL,
+                    message=f"Columns removed from {dataset_id}: {sorted(removed)}",
+                    actual=str(sorted(set(current.keys()))),
+                    expected=str(sorted(set(baseline.keys()))),
+                )
+            )
 
         if added:
-            checks.append(CheckResult(
-                name="columns_added",
-                passed=False,
-                severity=DetectorSeverity.MEDIUM,
-                message=f"New columns in {dataset_id}: {sorted(added)}",
-                actual=str(sorted(added)),
-                expected="(no new columns)",
-            ))
+            checks.append(
+                CheckResult(
+                    name="columns_added",
+                    passed=False,
+                    severity=DetectorSeverity.MEDIUM,
+                    message=f"New columns in {dataset_id}: {sorted(added)}",
+                    actual=str(sorted(added)),
+                    expected="(no new columns)",
+                )
+            )
 
         for col in sorted(type_changed):
-            checks.append(CheckResult(
-                name=f"type_changed_{col}",
-                passed=False,
-                severity=DetectorSeverity.HIGH,
-                message=f"Column {col!r} type changed: {baseline[col]!r} → {current[col]!r}",
-                actual=current[col],
-                expected=baseline[col],
-            ))
+            checks.append(
+                CheckResult(
+                    name=f"type_changed_{col}",
+                    passed=False,
+                    severity=DetectorSeverity.HIGH,
+                    message=f"Column {col!r} type changed: {baseline[col]!r} → {current[col]!r}",
+                    actual=current[col],
+                    expected=baseline[col],
+                )
+            )
 
         return checks

@@ -21,7 +21,10 @@ env/
 # Test / coverage
 .pytest_cache/
 .coverage
+.coverage.*
+coverage.xml
 htmlcov/
+*.log
 .tox/
 
 # Type checking
@@ -51,3 +54,10 @@ Thumbs.db
 # Helm
 deploy/helm/*/charts/
 deploy/helm/*/*.tgz
+
+# Mkdocs
+site/
+
+# Agent caches / tooling
+.claude-flow/
+.omc/

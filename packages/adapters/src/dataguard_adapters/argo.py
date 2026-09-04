@@ -4,7 +4,15 @@ from datetime import datetime
 
 import httpx
 
-from dataguard_adapters.base import OrchestratorAdapter, PipelineSummary, RunDetails, RunStatus
+from dataguard_adapters.base import (
+    OrchestratorAdapter,
+    OrchestratorConnectionError,
+    PipelineNotFoundError,
+    PipelineSummary,
+    RunDetails,
+    RunNotFoundError,
+    RunStatus,
+)
 from dataguard_core.logging import get_logger
 from dataguard_core.metrics import adapter_request_duration
 
@@ -21,17 +29,7 @@ _PHASE_MAP: dict[str, RunStatus] = {
 
 
 class ArgoAdapter(OrchestratorAdapter):
-    """Argo Workflows REST API adapter.
-
-    Uses httpx directly against the Argo Workflows API server.
-    Requires a ServiceAccount token with get/list/watch on workflows.
-
-    Args:
-        host: Argo API server URL, e.g. https://argo.example.com.
-        namespace: Kubernetes namespace to query.
-        token: Bearer token. If None, tries ARGO_TOKEN env var.
-        verify_ssl: Set False only for local dev with self-signed certs.
-    """
+    """Argo Workflows REST API adapter."""
 
     def __init__(
         self,
@@ -40,13 +38,14 @@ class ArgoAdapter(OrchestratorAdapter):
         token: str | None = None,
         verify_ssl: bool = True,
         timeout: int = 30,
+        client: httpx.AsyncClient | None = None,
     ) -> None:
         import os
 
         resolved_token = token or os.environ.get("ARGO_TOKEN")
         headers = {"Authorization": f"Bearer {resolved_token}"} if resolved_token else {}
 
-        self._client = httpx.AsyncClient(
+        self._client = client or httpx.AsyncClient(
             base_url=f"{host.rstrip('/')}/api/v1",
             headers=headers,
             verify=verify_ssl,
@@ -63,55 +62,79 @@ class ArgoAdapter(OrchestratorAdapter):
         tag: str | None = None,
         status: RunStatus | None = None,
     ) -> list[PipelineSummary]:
-        # Argo WorkflowTemplates represent "pipelines"; individual Workflows are runs
-        with adapter_request_duration.labels(adapter="argo", operation="list_workflow_templates").time():
-            resp = await self._client.get(f"/workflow-templates/{self._namespace}")
-            resp.raise_for_status()
+        with adapter_request_duration.labels(adapter="argo", operation="list_workflows").time():
+            params: dict[str, str] = {}
+            if tag:
+                params["listOptions.labelSelector"] = f"tag={tag}"
+            try:
+                resp = await self._client.get(
+                    f"/workflows/{self._namespace}",
+                    params=params,
+                )
+                resp.raise_for_status()
+            except httpx.HTTPError as exc:
+                raise OrchestratorConnectionError(f"Argo connection failed: {exc}") from exc
 
-        templates = resp.json().get("items") or []
-        summaries = [self._template_to_summary(t) for t in templates]
+        items = resp.json().get("items") or []
+        summaries = [self._workflow_to_summary(w) for w in items]
 
-        if tag:
-            summaries = [
-                s for s in summaries
-                if tag in s.tags
-            ]
+        if status is not None:
+            summaries = [s for s in summaries if s.last_run_status == status]
+
         return summaries
 
     async def get_pipeline(self, pipeline_id: str) -> PipelineSummary:
-        with adapter_request_duration.labels(adapter="argo", operation="get_workflow_template").time():
-            resp = await self._client.get(
-                f"/workflow-templates/{self._namespace}/{pipeline_id}"
-            )
-            resp.raise_for_status()
-        return self._template_to_summary(resp.json())
+        with adapter_request_duration.labels(adapter="argo", operation="get_workflow").time():
+            try:
+                resp = await self._client.get(f"/workflows/{self._namespace}/{pipeline_id}")
+                if resp.status_code == 404:
+                    raise PipelineNotFoundError(f"Workflow {pipeline_id!r} not found in Argo")
+                resp.raise_for_status()
+            except httpx.HTTPError as exc:
+                raise OrchestratorConnectionError(f"Argo connection failed: {exc}") from exc
+        return self._workflow_to_summary(resp.json())
 
     async def get_run(self, pipeline_id: str, run_id: str) -> RunDetails:
-        with adapter_request_duration.labels(adapter="argo", operation="get_workflow").time():
-            resp = await self._client.get(f"/workflows/{self._namespace}/{run_id}")
-            resp.raise_for_status()
+        wf_id = run_id or pipeline_id
+        with adapter_request_duration.labels(adapter="argo", operation="get_workflow_run").time():
+            try:
+                resp = await self._client.get(f"/workflows/{self._namespace}/{wf_id}")
+                if resp.status_code == 404:
+                    raise RunNotFoundError(f"Run {wf_id!r} not found in Argo")
+                resp.raise_for_status()
+            except httpx.HTTPError as exc:
+                raise OrchestratorConnectionError(f"Argo connection failed: {exc}") from exc
         return self._workflow_to_details(resp.json(), pipeline_id)
 
     async def get_latest_run(self, pipeline_id: str) -> RunDetails:
         history = await self.get_run_history(pipeline_id, limit=1)
         if not history:
-            raise ValueError(f"No runs found for pipeline {pipeline_id!r}")
+            raise RunNotFoundError(f"No runs found for workflow {pipeline_id!r}")
         return history[0]
 
     async def get_run_history(self, pipeline_id: str, limit: int = 10) -> list[RunDetails]:
-        with adapter_request_duration.labels(adapter="argo", operation="list_workflows").time():
-            resp = await self._client.get(
-                f"/workflows/{self._namespace}",
-                params={
-                    "listOptions.labelSelector": f"workflows.argoproj.io/workflow-template={pipeline_id}",
-                    "listOptions.limit": limit,
-                },
-            )
-            resp.raise_for_status()
+        with adapter_request_duration.labels(adapter="argo", operation="list_workflow_history").time():
+            try:
+                resp = await self._client.get(
+                    f"/workflows/{self._namespace}",
+                    params={
+                        "listOptions.labelSelector": f"workflows.argoproj.io/workflow-template={pipeline_id}",
+                        "listOptions.limit": str(limit),
+                    },
+                )
+                resp.raise_for_status()
+            except httpx.HTTPError as exc:
+                raise OrchestratorConnectionError(f"Argo connection failed: {exc}") from exc
 
-        workflows = resp.json().get("items") or []
-        details = [self._workflow_to_details(w, pipeline_id) for w in workflows]
-        return sorted(details, key=lambda d: d.started_at or datetime.min, reverse=True)
+        items = resp.json().get("items") or []
+        if not items:
+            try:
+                single = await self.get_run(pipeline_id, pipeline_id)
+                return [single]
+            except Exception:
+                return []
+
+        return [self._workflow_to_details(w, pipeline_id) for w in items[:limit]]
 
     async def get_run_logs(
         self,
@@ -121,83 +144,76 @@ class ArgoAdapter(OrchestratorAdapter):
         head_lines: int = 50,
         tail_lines: int = 100,
     ) -> str:
-        params: dict[str, str | int] = {"logOptions.follow": "false"}
+        wf_id = run_id or pipeline_id
+        params: dict[str, str] = {"logOptions.container": "main"}
         if task_id:
             params["podName"] = task_id
 
-        with adapter_request_duration.labels(adapter="argo", operation="get_workflow_log").time():
-            resp = await self._client.get(
-                f"/workflows/{self._namespace}/{run_id}/log",
-                params=params,
-            )
-            if resp.status_code == 404:
-                return f"(logs not available for workflow {run_id})"
-            resp.raise_for_status()
-
-        # Argo log endpoint returns newline-delimited JSON; extract content field
-        lines = []
-        for line in resp.text.splitlines():
+        with adapter_request_duration.labels(adapter="argo", operation="get_workflow_logs").time():
             try:
-                import json
-                entry = json.loads(line)
-                content = entry.get("result", {}).get("content", "")
-                if content:
-                    lines.append(content)
-            except (ValueError, KeyError):
-                lines.append(line)
+                resp = await self._client.get(
+                    f"/workflows/{self._namespace}/{wf_id}/log",
+                    params=params,
+                )
+                if resp.status_code == 404:
+                    return f"(no logs found for workflow {wf_id})"
+                resp.raise_for_status()
+            except httpx.HTTPError as exc:
+                raise OrchestratorConnectionError(f"Argo connection failed: {exc}") from exc
 
-        raw = "\n".join(lines)
-        return self._trim_log(raw, head_lines, tail_lines)
+        return self._trim_log(resp.text, head_lines, tail_lines)
 
     @staticmethod
-    def _template_to_summary(template: dict) -> PipelineSummary:  # type: ignore[type-arg]
-        meta = template.get("metadata", {})
-        labels = meta.get("labels", {}) or {}
+    def _workflow_to_summary(wf: dict) -> PipelineSummary:  # type: ignore[type-arg]
+        metadata = wf.get("metadata", {})
+        status = wf.get("status", {})
+        labels = metadata.get("labels", {})
+
+        phase = status.get("phase", "Unknown")
+        run_status = _PHASE_MAP.get(phase, RunStatus.UNKNOWN)
+
         return PipelineSummary(
-            id=meta.get("name", ""),
-            name=meta.get("name", ""),
+            id=metadata.get("name", ""),
+            name=metadata.get("name", ""),
             orchestrator="argo",
-            owner=labels.get("owner") or meta.get("namespace"),
-            tags=list(labels.keys()),
-            last_run_status=None,
-            last_run_at=None,
-            schedule=template.get("spec", {}).get("schedules", [None])[0],
-            is_paused=labels.get("workflows.argoproj.io/paused") == "true",
+            owner=labels.get("owner"),
+            tags=[v for k, v in labels.items() if k.startswith("tag") or k == "tier"],
+            last_run_status=run_status,
+            last_run_at=_parse_dt(status.get("startedAt")),
+            schedule=metadata.get("annotations", {}).get("cron"),
+            is_paused=False,
         )
 
     @staticmethod
-    def _workflow_to_details(workflow: dict, pipeline_id: str) -> RunDetails:  # type: ignore[type-arg]
-        meta = workflow.get("metadata", {})
-        status = workflow.get("status", {})
-        phase = status.get("phase", "Unknown")
+    def _workflow_to_details(wf: dict, pipeline_id: str) -> RunDetails:  # type: ignore[type-arg]
+        metadata = wf.get("metadata", {})
+        status = wf.get("status", {})
 
         started = _parse_dt(status.get("startedAt"))
-        finished = _parse_dt(status.get("finishedAt"))
+        ended = _parse_dt(status.get("finishedAt"))
         duration: float | None = None
-        if started and finished:
-            duration = (finished - started).total_seconds()
+        if started and ended:
+            duration = (ended - started).total_seconds()
 
-        # Find the first failed node
         failing_task: str | None = None
         for node in (status.get("nodes") or {}).values():
             if node.get("phase") in ("Failed", "Error") and node.get("type") == "Pod":
-                failing_task = node.get("displayName") or node.get("id")
+                failing_task = node.get("name")
                 break
 
         return RunDetails(
-            run_id=meta.get("name", ""),
+            run_id=metadata.get("name", ""),
             pipeline_id=pipeline_id,
-            status=_PHASE_MAP.get(phase, RunStatus.UNKNOWN),
+            status=_PHASE_MAP.get(status.get("phase", ""), RunStatus.UNKNOWN),
             started_at=started,
-            ended_at=finished,
+            ended_at=ended,
             duration_seconds=duration,
             error_message=status.get("message"),
             failing_task=failing_task,
             retry_number=0,
-            metadata={"namespace": meta.get("namespace", "")},
         )
 
-    async def close(self) -> None:
+    async def aclose(self) -> None:
         await self._client.aclose()
 
 

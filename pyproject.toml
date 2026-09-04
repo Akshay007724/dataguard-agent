@@ -33,14 +33,14 @@ line-length = 120
 [tool.ruff.lint]
 select = ["E", "F", "I", "N", "W", "UP", "ANN", "B", "SIM", "RUF", "ASYNC"]
 ignore = [
-    "ANN101",  # missing self type annotation
-    "ANN102",  # missing cls type annotation
     "ANN401",  # Any is sometimes necessary
+    "ANN101",  # self annotation deprecated
+    "ANN102",  # cls annotation deprecated
     "E501",    # line too long — formatter handles this
 ]
 
 [tool.ruff.lint.isort]
-known-first-party = ["dataguard_core", "dataguard_adapters", "pipeline_sentinel"]
+known-first-party = ["dataguard_core", "dataguard_adapters", "pipeline_sentinel", "dataguard_agents"]
 
 [tool.ruff.lint.per-file-ignores]
 "tests/**" = ["ANN", "S101", "N806"]
@@ -51,10 +51,11 @@ known-first-party = ["dataguard_core", "dataguard_adapters", "pipeline_sentinel"
 python_version = "3.12"
 strict = true
 plugins = ["pydantic.mypy"]
+explicit_package_bases = true
 exclude = ["tests/", ".venv/"]
 
 [[tool.mypy.overrides]]
-module = ["litellm.*", "hera.*", "openlineage.*", "testcontainers.*"]
+module = ["litellm.*", "hera.*", "openlineage.*", "testcontainers.*", "mcp.*"]
 ignore_missing_imports = true
 
 # ── Pytest ───────────────────────────────────────────────────────────────────
@@ -76,3 +77,8 @@ omit = ["*/tests/*", "*/__main__.py"]
 [tool.coverage.report]
 exclude_lines = ["pragma: no cover", "if TYPE_CHECKING:", "raise NotImplementedError"]
 fail_under = 75
+
+[[tool.mypy.overrides]]
+module = ["pipeline_sentinel.mcp_server.server"]
+disallow_untyped_decorators = false
+disallow_untyped_calls = false

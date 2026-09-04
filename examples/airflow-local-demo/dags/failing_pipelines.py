@@ -23,6 +23,7 @@ _DEFAULT_ARGS = {
 
 # ── DAG 1: Schema drift ──────────────────────────────────────────────────────
 
+
 def _simulate_schema_drift(**context: object) -> None:
     """Simulates a downstream pipeline reading a column that was dropped upstream."""
     # Upstream crm_accounts table dropped 'account_type' in a recent migration.
@@ -49,6 +50,7 @@ with DAG(
 
 # ── DAG 2: Source unavailability ─────────────────────────────────────────────
 
+
 def _simulate_source_unavailable(**context: object) -> None:
     """Simulates an external API returning connection refused."""
     import socket
@@ -59,10 +61,7 @@ def _simulate_source_unavailable(**context: object) -> None:
     try:
         sock.connect(("localhost", 19999))  # nothing listening here
     except (ConnectionRefusedError, OSError) as exc:
-        raise RuntimeError(
-            f"connection refused to inventory-api:19999: {exc}. "
-            "Source system may be down."
-        ) from exc
+        raise RuntimeError(f"connection refused to inventory-api:19999: {exc}. Source system may be down.") from exc
     finally:
         sock.close()
 
@@ -82,6 +81,7 @@ with DAG(
 
 
 # ── DAG 3: SLA violation ─────────────────────────────────────────────────────
+
 
 def _simulate_slow_run(**context: object) -> None:
     """Simulates a pipeline that runs but breaches its SLA."""
@@ -110,6 +110,7 @@ with DAG(
 
 
 # ── DAG 4: Healthy reference pipeline ───────────────────────────────────────
+
 
 def _healthy_run(**context: object) -> None:
     print("Pipeline completed successfully.")

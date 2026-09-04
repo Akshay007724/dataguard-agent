@@ -1,7 +1,10 @@
 from __future__ import annotations
 
+import contextlib
+import json
+from collections.abc import AsyncGenerator
 from contextlib import asynccontextmanager
-from typing import Any, AsyncGenerator
+from typing import Any
 
 from fastapi import FastAPI, HTTPException, Request
 from fastapi.responses import JSONResponse, PlainTextResponse
@@ -30,6 +33,12 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     log.info("sentinel_api_started", host=settings.server_host, port=settings.server_port)
     yield
 
+    for adapter in getattr(app.state, "adapters", []):
+        with contextlib.suppress(Exception):
+            await adapter.aclose()
+    with contextlib.suppress(Exception):
+        await app.state.tracer._client.aclose()
+    await postgres.dispose_engine()
     await redis.close()
     log.info("sentinel_api_stopped")
 
@@ -44,6 +53,18 @@ def create_app() -> FastAPI:
         redoc_url=None,
     )
 
+    @application.get("/")
+    async def root() -> dict[str, str]:
+        return {
+            "name": "DataGuard Agent — Pipeline Sentinel",
+            "version": "0.1.0",
+            "status": "healthy",
+            "documentation": "/docs",
+            "health_check": "/health",
+            "metrics": "/metrics",
+            "mcp_endpoint": "/mcp/call",
+        }
+
     @application.get("/health")
     async def health() -> dict[str, str]:
         return {"status": "ok", "version": "0.1.0"}
@@ -56,6 +77,7 @@ def create_app() -> FastAPI:
         )
 
     @application.post("/mcp/call")
+    @application.post("/api/mcp/call")
     async def mcp_call(request: Request) -> JSONResponse:
         """HTTP wrapper over MCP tool calls.
 
@@ -77,7 +99,6 @@ def create_app() -> FastAPI:
             llm=request.app.state.llm,
         )
 
-        import json
         return JSONResponse(content=json.loads(result_str))
 
     return application

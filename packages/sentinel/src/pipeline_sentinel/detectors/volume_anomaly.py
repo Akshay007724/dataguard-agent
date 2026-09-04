@@ -1,13 +1,16 @@
 from __future__ import annotations
 
-import json
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime
 
 from dataguard_core.logging import get_logger
 from dataguard_core.metrics import detector_duration
 from dataguard_core.store import redis
-
-from pipeline_sentinel.detectors.base import BaseDetector, CheckResult, DetectorResult, DetectorSeverity
+from pipeline_sentinel.detectors.base import (
+    BaseDetector,
+    CheckResult,
+    DetectorResult,
+    DetectorSeverity,
+)
 
 log = get_logger(__name__)
 
@@ -61,7 +64,7 @@ class VolumeAnomalyDetector(BaseDetector):
 
         mean = sum(baseline) / len(baseline)
         variance = sum((x - mean) ** 2 for x in baseline) / len(baseline)
-        stddev = variance ** 0.5
+        stddev = variance**0.5
 
         if stddev == 0:
             # All historical values identical — any deviation is anomalous
@@ -110,7 +113,7 @@ class VolumeAnomalyDetector(BaseDetector):
     async def record_volume(self, dataset_id: str, row_count: int) -> None:
         """Record a row count observation. Called from OpenLineage event handler."""
         history = await self._load_history(dataset_id)
-        history.append({"count": row_count, "ts": datetime.now(timezone.utc).isoformat()})
+        history.append({"count": row_count, "ts": datetime.now(UTC).isoformat()})
         # Keep last 90 observations
         history = history[-90:]
         key = f"{_VOLUME_HISTORY_KEY}{dataset_id}"

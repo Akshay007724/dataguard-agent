@@ -31,7 +31,7 @@ fmt: ## Auto-fix and format
 	$(RUFF) check --fix .
 
 typecheck: ## mypy + pyright
-	$(MYPY) packages/
+	$(MYPY) -p dataguard_core -p dataguard_adapters -p pipeline_sentinel -p dataguard_agents
 	uv run pyright packages/
 
 pre-commit: ## Run all pre-commit hooks against all files

@@ -6,6 +6,7 @@ from typing import Any
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
+
 from dataguard_agents.base import AgentContext
 from dataguard_agents.triage import TriageAgent
 
@@ -92,14 +93,20 @@ class TestTriageAgentRun:
         mock_dispatch = AsyncMock(return_value=json.dumps({"pipelines": []}))
 
         with (
-            patch("dataguard_agents.triage.litellm.acompletion", new=AsyncMock(side_effect=[tool_response, stop_response])),
+            patch(
+                "dataguard_agents.triage.litellm.acompletion", new=AsyncMock(side_effect=[tool_response, stop_response])
+            ),
             patch("dataguard_agents.base._dispatch", new=mock_dispatch),
         ):
             await agent.run()
 
         mock_dispatch.assert_awaited_once()
         call_kwargs = mock_dispatch.call_args
-        assert call_kwargs[1]["name"] == "list_pipelines" or call_kwargs[0][0] == "list_pipelines" or "list_pipelines" in str(call_kwargs)
+        assert (
+            call_kwargs[1]["name"] == "list_pipelines"
+            or call_kwargs[0][0] == "list_pipelines"
+            or "list_pipelines" in str(call_kwargs)
+        )
 
     @pytest.mark.asyncio
     async def test_scope_sets_single_pipeline_prompt(self) -> None:

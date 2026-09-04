@@ -3,6 +3,7 @@ from __future__ import annotations
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
+from pydantic import BaseModel
 
 from dataguard_core.llm.client import LLMClient
 
@@ -61,9 +62,7 @@ class TestLLMClientComplete:
     async def test_complete_sends_system_message(self) -> None:
         client = LLMClient(model="openai/gpt-4o")
         mock_resp = _mock_litellm_response("ok")
-        with patch(
-            "dataguard_core.llm.client.litellm.acompletion", new=AsyncMock(return_value=mock_resp)
-        ) as mock_call:
+        with patch("dataguard_core.llm.client.litellm.acompletion", new=AsyncMock(return_value=mock_resp)) as mock_call:
             await client.complete("prompt", system="Be concise")
         messages = mock_call.call_args.kwargs["messages"]
         roles = [m["role"] for m in messages]
@@ -74,9 +73,7 @@ class TestLLMClientComplete:
     async def test_complete_without_system_sends_user_only(self) -> None:
         client = LLMClient(model="openai/gpt-4o")
         mock_resp = _mock_litellm_response("ok")
-        with patch(
-            "dataguard_core.llm.client.litellm.acompletion", new=AsyncMock(return_value=mock_resp)
-        ) as mock_call:
+        with patch("dataguard_core.llm.client.litellm.acompletion", new=AsyncMock(return_value=mock_resp)) as mock_call:
             await client.complete("user prompt")
         messages = mock_call.call_args.kwargs["messages"]
         assert len(messages) == 1
@@ -86,9 +83,7 @@ class TestLLMClientComplete:
     async def test_complete_passes_api_key_when_set(self) -> None:
         client = LLMClient(model="openai/gpt-4o", api_key="sk-test")
         mock_resp = _mock_litellm_response("ok")
-        with patch(
-            "dataguard_core.llm.client.litellm.acompletion", new=AsyncMock(return_value=mock_resp)
-        ) as mock_call:
+        with patch("dataguard_core.llm.client.litellm.acompletion", new=AsyncMock(return_value=mock_resp)) as mock_call:
             await client.complete("prompt")
         assert mock_call.call_args.kwargs.get("api_key") == "sk-test"
 
@@ -96,8 +91,30 @@ class TestLLMClientComplete:
     async def test_complete_omits_api_key_when_none(self) -> None:
         client = LLMClient(model="openai/gpt-4o", api_key=None)
         mock_resp = _mock_litellm_response("ok")
-        with patch(
-            "dataguard_core.llm.client.litellm.acompletion", new=AsyncMock(return_value=mock_resp)
-        ) as mock_call:
+        with patch("dataguard_core.llm.client.litellm.acompletion", new=AsyncMock(return_value=mock_resp)) as mock_call:
             await client.complete("prompt")
         assert "api_key" not in mock_call.call_args.kwargs
+
+
+class _SampleSchema(BaseModel):
+    name: str
+    count: int
+
+
+class TestLLMClientStructuredAndTools:
+    @pytest.mark.asyncio
+    async def test_complete_structured(self) -> None:
+        client = LLMClient(model="openai/gpt-4o")
+        mock_resp = _mock_litellm_response('{"name": "market", "count": 42}')
+        with patch("dataguard_core.llm.client.litellm.acompletion", new=AsyncMock(return_value=mock_resp)):
+            result = await client.complete_structured("give me sample", _SampleSchema)
+            assert result.name == "market"
+            assert result.count == 42
+
+    @pytest.mark.asyncio
+    async def test_complete_with_tools(self) -> None:
+        client = LLMClient(model="openai/gpt-4o")
+        mock_resp = _mock_litellm_response("ok", prompt_tokens=10, completion_tokens=5)
+        with patch("dataguard_core.llm.client.litellm.acompletion", new=AsyncMock(return_value=mock_resp)):
+            res = await client.complete_with_tools([{"role": "user", "content": "hi"}], [])
+            assert res == mock_resp
