@@ -1,0 +1,1580 @@
+
+<!doctype html>
+<html lang="en" class="no-js">
+  <head>
+    
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width,initial-scale=1">
+      
+        <meta name="description" content="MCP-native agentic observability for data pipelines">
+      
+      
+      
+        <link rel="canonical" href="https://dataguard-agent.github.io/dataguard-agent/architecture/">
+      
+      
+        <link rel="prev" href="../quickstart/">
+      
+      
+        <link rel="next" href="../mcp-tools/">
+      
+      
+        
+      
+      
+      <link rel="icon" href="../assets/images/favicon.png">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.6">
+    
+    
+      
+        <title>Architecture - DataGuard Agent</title>
+      
+    
+    
+      <link rel="stylesheet" href="../assets/stylesheets/main.484c7ddc.min.css">
+      
+        
+        <link rel="stylesheet" href="../assets/stylesheets/palette.ab4e12ef.min.css">
+      
+      
+
+
+    
+    
+      
+    
+    
+      
+        
+        
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+        <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Roboto:300,300i,400,400i,700,700i%7CRoboto+Mono:400,400i,700,700i&display=fallback">
+        <style>:root{--md-text-font:"Roboto";--md-code-font:"Roboto Mono"}</style>
+      
+    
+    
+      <link rel="stylesheet" href="../assets/_mkdocstrings.css">
+    
+    <script>__md_scope=new URL("..",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
+    
+      
+
+    
+    
+  </head>
+  
+  
+    
+    
+      
+    
+    
+    
+    
+    <body dir="ltr" data-md-color-scheme="default" data-md-color-primary="deep-purple" data-md-color-accent="indigo">
+  
+    
+    <input class="md-toggle" data-md-toggle="drawer" type="checkbox" id="__drawer" autocomplete="off">
+    <input class="md-toggle" data-md-toggle="search" type="checkbox" id="__search" autocomplete="off">
+    <label class="md-overlay" for="__drawer"></label>
+    <div data-md-component="skip">
+      
+        
+        <a href="#architecture" class="md-skip">
+          Skip to content
+        </a>
+      
+    </div>
+    <div data-md-component="announce">
+      
+    </div>
+    
+    
+      
+
+<header class="md-header" data-md-component="header">
+  <nav class="md-header__inner md-grid" aria-label="Header">
+    <a href=".." title="DataGuard Agent" class="md-header__button md-logo" aria-label="DataGuard Agent" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+
+    </a>
+    <label class="md-header__button md-icon" for="__drawer">
+      
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M3 6h18v2H3zm0 5h18v2H3zm0 5h18v2H3z"/></svg>
+    </label>
+    <div class="md-header__title" data-md-component="header-title">
+      <div class="md-header__ellipsis">
+        <div class="md-header__topic">
+          <span class="md-ellipsis">
+            DataGuard Agent
+          </span>
+        </div>
+        <div class="md-header__topic" data-md-component="header-topic">
+          <span class="md-ellipsis">
+            
+              Architecture
+            
+          </span>
+        </div>
+      </div>
+    </div>
+    
+      
+        <form class="md-header__option" data-md-component="palette">
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="(prefers-color-scheme: light)" data-md-color-scheme="default" data-md-color-primary="deep-purple" data-md-color-accent="indigo"  aria-label="Switch to dark mode"  type="radio" name="__palette" id="__palette_0">
+    
+      <label class="md-header__button md-icon" title="Switch to dark mode" for="__palette_1" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a4 4 0 0 0-4 4 4 4 0 0 0 4 4 4 4 0 0 0 4-4 4 4 0 0 0-4-4m0 10a6 6 0 0 1-6-6 6 6 0 0 1 6-6 6 6 0 0 1 6 6 6 6 0 0 1-6 6m8-9.31V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12z"/></svg>
+      </label>
+    
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="(prefers-color-scheme: dark)" data-md-color-scheme="slate" data-md-color-primary="deep-purple" data-md-color-accent="indigo"  aria-label="Switch to light mode"  type="radio" name="__palette" id="__palette_1">
+    
+      <label class="md-header__button md-icon" title="Switch to light mode" for="__palette_0" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 18c-.89 0-1.74-.2-2.5-.55C11.56 16.5 13 14.42 13 12s-1.44-4.5-3.5-5.45C10.26 6.2 11.11 6 12 6a6 6 0 0 1 6 6 6 6 0 0 1-6 6m8-9.31V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12z"/></svg>
+      </label>
+    
+  
+</form>
+      
+    
+    
+      <script>var palette=__md_get("__palette");if(palette&&palette.color){if("(prefers-color-scheme)"===palette.color.media){var media=matchMedia("(prefers-color-scheme: light)"),input=document.querySelector(media.matches?"[data-md-color-media='(prefers-color-scheme: light)']":"[data-md-color-media='(prefers-color-scheme: dark)']");palette.color.media=input.getAttribute("data-md-color-media"),palette.color.scheme=input.getAttribute("data-md-color-scheme"),palette.color.primary=input.getAttribute("data-md-color-primary"),palette.color.accent=input.getAttribute("data-md-color-accent")}for(var[key,value]of Object.entries(palette.color))document.body.setAttribute("data-md-color-"+key,value)}</script>
+    
+    
+    
+      
+      
+        <label class="md-header__button md-icon" for="__search">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        </label>
+        <div class="md-search" data-md-component="search" role="dialog">
+  <label class="md-search__overlay" for="__search"></label>
+  <div class="md-search__inner" role="search">
+    <form class="md-search__form" name="search">
+      <input type="text" class="md-search__input" name="query" aria-label="Search" placeholder="Search" autocapitalize="off" autocorrect="off" autocomplete="off" spellcheck="false" data-md-component="search-query" required>
+      <label class="md-search__icon md-icon" for="__search">
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"/></svg>
+      </label>
+      <nav class="md-search__options" aria-label="Search">
+        
+        <button type="reset" class="md-search__icon md-icon" title="Clear" aria-label="Clear" tabindex="-1">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
+        </button>
+      </nav>
+      
+    </form>
+    <div class="md-search__output">
+      <div class="md-search__scrollwrap" tabindex="0" data-md-scrollfix>
+        <div class="md-search-result" data-md-component="search-result">
+          <div class="md-search-result__meta">
+            Initializing search
+          </div>
+          <ol class="md-search-result__list" role="presentation"></ol>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+      
+    
+    
+      <div class="md-header__source">
+        <a href="https://github.com/dataguard-agent/dataguard-agent" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M439.6 236.1 244 40.5c-5.4-5.5-12.8-8.5-20.4-8.5s-15 3-20.4 8.4L162.5 81l51.5 51.5c27.1-9.1 52.7 16.8 43.4 43.7l49.7 49.7c34.2-11.8 61.2 31 35.5 56.7-26.5 26.5-70.2-2.9-56-37.3L240.3 199v121.9c25.3 12.5 22.3 41.8 9.1 55-6.4 6.4-15.2 10.1-24.3 10.1s-17.8-3.6-24.3-10.1c-17.6-17.6-11.1-46.9 11.2-56v-123c-20.8-8.5-24.6-30.7-18.6-45L142.6 101 8.5 235.1C3 240.6 0 247.9 0 255.5s3 15 8.5 20.4l195.6 195.7c5.4 5.4 12.7 8.4 20.4 8.4s15-3 20.4-8.4l194.7-194.7c5.4-5.4 8.4-12.8 8.4-20.4s-3-15-8.4-20.4"/></svg>
+  </div>
+  <div class="md-source__repository">
+    dataguard-agent/dataguard-agent
+  </div>
+</a>
+      </div>
+    
+  </nav>
+  
+</header>
+    
+    <div class="md-container" data-md-component="container">
+      
+      
+        
+          
+            
+<nav class="md-tabs" aria-label="Tabs" data-md-component="tabs">
+  <div class="md-grid">
+    <ul class="md-tabs__list">
+      
+        
+  
+  
+  
+  
+    <li class="md-tabs__item">
+      <a href=".." class="md-tabs__link">
+        
+  
+  
+    
+  
+  Home
+
+      </a>
+    </li>
+  
+
+      
+        
+  
+  
+  
+  
+    <li class="md-tabs__item">
+      <a href="../quickstart/" class="md-tabs__link">
+        
+  
+  
+    
+  
+  Quickstart
+
+      </a>
+    </li>
+  
+
+      
+        
+  
+  
+  
+    
+  
+  
+    <li class="md-tabs__item md-tabs__item--active">
+      <a href="./" class="md-tabs__link">
+        
+  
+  
+    
+  
+  Architecture
+
+      </a>
+    </li>
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../mcp-tools/" class="md-tabs__link">
+          
+  
+  
+  Reference
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    <li class="md-tabs__item">
+      <a href="../deployment/" class="md-tabs__link">
+        
+  
+  
+    
+  
+  Deployment
+
+      </a>
+    </li>
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../case-studies/" class="md-tabs__link">
+          
+  
+  
+  Case Studies
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../tutorials/" class="md-tabs__link">
+          
+  
+  
+  Tutorials
+
+        </a>
+      </li>
+    
+  
+
+      
+    </ul>
+  </div>
+</nav>
+          
+        
+      
+      <main class="md-main" data-md-component="main">
+        <div class="md-main__inner md-grid">
+          
+            
+              
+              <div class="md-sidebar md-sidebar--primary" data-md-component="sidebar" data-md-type="navigation" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+
+  
+
+
+<nav class="md-nav md-nav--primary md-nav--lifted" aria-label="Navigation" data-md-level="0">
+  <label class="md-nav__title" for="__drawer">
+    <a href=".." title="DataGuard Agent" class="md-nav__button md-logo" aria-label="DataGuard Agent" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+
+    </a>
+    DataGuard Agent
+  </label>
+  
+    <div class="md-nav__source">
+      <a href="https://github.com/dataguard-agent/dataguard-agent" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M439.6 236.1 244 40.5c-5.4-5.5-12.8-8.5-20.4-8.5s-15 3-20.4 8.4L162.5 81l51.5 51.5c27.1-9.1 52.7 16.8 43.4 43.7l49.7 49.7c34.2-11.8 61.2 31 35.5 56.7-26.5 26.5-70.2-2.9-56-37.3L240.3 199v121.9c25.3 12.5 22.3 41.8 9.1 55-6.4 6.4-15.2 10.1-24.3 10.1s-17.8-3.6-24.3-10.1c-17.6-17.6-11.1-46.9 11.2-56v-123c-20.8-8.5-24.6-30.7-18.6-45L142.6 101 8.5 235.1C3 240.6 0 247.9 0 255.5s3 15 8.5 20.4l195.6 195.7c5.4 5.4 12.7 8.4 20.4 8.4s15-3 20.4-8.4l194.7-194.7c5.4-5.4 8.4-12.8 8.4-20.4s-3-15-8.4-20.4"/></svg>
+  </div>
+  <div class="md-source__repository">
+    dataguard-agent/dataguard-agent
+  </div>
+</a>
+    </div>
+  
+  <ul class="md-nav__list" data-md-scrollfix>
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href=".." class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Home
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../quickstart/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Quickstart
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+    
+  
+  
+  
+    <li class="md-nav__item md-nav__item--active">
+      
+      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
+      
+      
+        
+      
+      
+        <label class="md-nav__link md-nav__link--active" for="__toc">
+          
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Architecture
+  
+
+    
+  </span>
+  
+  
+
+          <span class="md-nav__icon md-icon"></span>
+        </label>
+      
+      <a href="./" class="md-nav__link md-nav__link--active">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Architecture
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+      
+        
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#design-principles" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Design Principles
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#monorepo-layout-uv-workspaces" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Monorepo Layout (uv workspaces)
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Monorepo Layout (uv workspaces)">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#1-dataguard-core-packagescore-shared-primitives" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        1. dataguard-core (packages/core/) — Shared Primitives
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#2-dataguard-adapters-packagesadapters-orchestrator-clients" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        2. dataguard-adapters (packages/adapters/) — Orchestrator Clients
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#3-pipeline-sentinel-packagessentinel-the-observability-engine-mcp-server" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        3. pipeline-sentinel (packages/sentinel/) — The Observability Engine &amp; MCP Server
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#4-dataguard-agents-packagesagents-autonomous-agent-runtime" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        4. dataguard-agents (packages/agents/) — Autonomous Agent Runtime
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#request-lifecycle-diagnose_failure" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Request Lifecycle: diagnose_failure
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#state-store-data-models" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        State Store &amp; Data Models
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="State Store &amp; Data Models">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#postgresql-16-relational-system-of-record" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        PostgreSQL 16 (Relational System of Record)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#redis-7-ephemeral-cache-synchronization" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Redis 7 (Ephemeral Cache &amp; Synchronization)
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#observability-telemetry" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Observability &amp; Telemetry
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Observability &amp; Telemetry">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#1-prometheus-metrics-exposed-on-8080metrics" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        1. Prometheus Metrics (Exposed on :8080/metrics)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#2-opentelemetry-tracing" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        2. OpenTelemetry Tracing
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#3-structured-logging-structlog" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        3. Structured Logging (structlog)
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#security-model" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Security Model
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_4" >
+        
+          
+          <label class="md-nav__link" for="__nav_4" id="__nav_4_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Reference
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_4_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_4">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Reference
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../mcp-tools/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    MCP Tools
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../adapters/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Adapters
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../detectors/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Detectors
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../deployment/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Deployment
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_6" >
+        
+          
+          <label class="md-nav__link" for="__nav_6" id="__nav_6_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Case Studies
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_6_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_6">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Case Studies
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../case-studies/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Overview
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_7" >
+        
+          
+          <label class="md-nav__link" for="__nav_7" id="__nav_7_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Tutorials
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_7_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_7">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Tutorials
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../tutorials/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Overview
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+  </ul>
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+            
+              
+              <div class="md-sidebar md-sidebar--secondary" data-md-component="sidebar" data-md-type="toc" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#design-principles" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Design Principles
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#monorepo-layout-uv-workspaces" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Monorepo Layout (uv workspaces)
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Monorepo Layout (uv workspaces)">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#1-dataguard-core-packagescore-shared-primitives" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        1. dataguard-core (packages/core/) — Shared Primitives
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#2-dataguard-adapters-packagesadapters-orchestrator-clients" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        2. dataguard-adapters (packages/adapters/) — Orchestrator Clients
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#3-pipeline-sentinel-packagessentinel-the-observability-engine-mcp-server" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        3. pipeline-sentinel (packages/sentinel/) — The Observability Engine &amp; MCP Server
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#4-dataguard-agents-packagesagents-autonomous-agent-runtime" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        4. dataguard-agents (packages/agents/) — Autonomous Agent Runtime
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#request-lifecycle-diagnose_failure" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Request Lifecycle: diagnose_failure
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#state-store-data-models" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        State Store &amp; Data Models
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="State Store &amp; Data Models">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#postgresql-16-relational-system-of-record" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        PostgreSQL 16 (Relational System of Record)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#redis-7-ephemeral-cache-synchronization" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Redis 7 (Ephemeral Cache &amp; Synchronization)
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#observability-telemetry" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Observability &amp; Telemetry
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Observability &amp; Telemetry">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#1-prometheus-metrics-exposed-on-8080metrics" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        1. Prometheus Metrics (Exposed on :8080/metrics)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#2-opentelemetry-tracing" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        2. OpenTelemetry Tracing
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#3-structured-logging-structlog" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        3. Structured Logging (structlog)
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#security-model" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Security Model
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+          
+          
+            <div class="md-content" data-md-component="content">
+              
+              <article class="md-content__inner md-typeset">
+                
+                  
+
+
+  
+    <a href="https://github.com/dataguard-agent/dataguard-agent/edit/main/docs/architecture.md" title="Edit this page" class="md-content__button md-icon" rel="edit">
+      
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M10 20H6V4h7v5h5v3.1l2-2V8l-6-6H6c-1.1 0-2 .9-2 2v16c0 1.1.9 2 2 2h4zm10.2-7c.1 0 .3.1.4.2l1.3 1.3c.2.2.2.6 0 .8l-1 1-2.1-2.1 1-1c.1-.1.2-.2.4-.2m0 3.9L14.1 23H12v-2.1l6.1-6.1z"/></svg>
+    </a>
+  
+  
+
+
+<h1 id="architecture">Architecture<a class="headerlink" href="#architecture" title="Permanent link">&para;</a></h1>
+<h2 id="design-principles">Design Principles<a class="headerlink" href="#design-principles" title="Permanent link">&para;</a></h2>
+<p><strong>Agent-first, not dashboard-first.</strong> Every capability is exposed as a Model Context Protocol (MCP) tool with a strict JSON schema. The HTTP REST API and CLI are thin wrappers over the same tool definitions. There is no custom web UI — the LLM client (Claude Desktop, Claude Code, Cursor, LangChain/LlamaIndex agents) is the UI.</p>
+<p><strong>Read-only by default.</strong> The system requires only read access to orchestrators, lineage stores, and data sources. <code>execute_remediation</code> is opt-in per pipeline, gated behind explicit configuration, approval tokens, and strict risk thresholds.</p>
+<p><strong>Adapter isolation.</strong> Orchestrator-specific code never leaks beyond its adapter module. The MCP tools operate against <code>OrchestratorAdapter</code>, an abstract base class, making new orchestrator support a matter of implementing async REST or SDK client methods.</p>
+<p><strong>Layered intelligence.</strong> Deterministic regex pattern matching executes before invoking LLM reasoning. High-frequency known failures (OOM, database connection timeouts, upstream failures, common key errors) resolve in &lt; 10ms with 100% confidence, saving LLM tokens and eliminating latency.</p>
+<hr />
+<h2 id="monorepo-layout-uv-workspaces">Monorepo Layout (<code>uv workspaces</code>)<a class="headerlink" href="#monorepo-layout-uv-workspaces" title="Permanent link">&para;</a></h2>
+<p>Four installable packages with a strict unidirectional dependency graph:</p>
+<div class="language-text highlight"><pre><span></span><code><span id="__span-0-1"><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a>dataguard-agents
+</span><span id="__span-0-2"><a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a>    └── pipeline-sentinel
+</span><span id="__span-0-3"><a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a>            └── dataguard-adapters
+</span><span id="__span-0-4"><a id="__codelineno-0-4" name="__codelineno-0-4" href="#__codelineno-0-4"></a>                    └── dataguard-core
+</span></code></pre></div>
+<h3 id="1-dataguard-core-packagescore-shared-primitives">1. <code>dataguard-core</code> (<code>packages/core/</code>) — Shared Primitives<a class="headerlink" href="#1-dataguard-core-packagescore-shared-primitives" title="Permanent link">&para;</a></h3>
+<ul>
+<li><strong>LLM Client</strong>: <code>LLMClient</code> wrapping <code>litellm</code> (Anthropic, OpenAI, Azure OpenAI, Ollama, AWS Bedrock, vLLM) with automatic retry, exponential backoff, structured output enforcement (<code>Pydantic</code> schema validation), and Prometheus token tracking.</li>
+<li><strong>Async State Store</strong>: SQLAlchemy 2.0 async engine + <code>asyncpg</code> for PostgreSQL, <code>redis.asyncio</code> for Redis caching and distributed locking.</li>
+<li><strong>Repository Layer</strong>: <code>IncidentRepository</code>, <code>RemediationRepository</code>, and <code>AuditRepository</code> abstracting DB access away from tool handlers.</li>
+<li><strong>Distributed Locking</strong>: Atomic UUID-tokenized locks in Redis via Lua scripts to prevent concurrent triage races.</li>
+<li><strong>Observability</strong>: <code>structlog</code> with automated OpenTelemetry trace/span context injection, <code>prometheus-client</code> counters/histograms, and OTel SDK configuration.</li>
+<li><strong>Configuration</strong>: Pydantic v2 <code>BaseSettings</code> with clean default values and environment-variable binding.</li>
+</ul>
+<h3 id="2-dataguard-adapters-packagesadapters-orchestrator-clients">2. <code>dataguard-adapters</code> (<code>packages/adapters/</code>) — Orchestrator Clients<a class="headerlink" href="#2-dataguard-adapters-packagesadapters-orchestrator-clients" title="Permanent link">&para;</a></h3>
+<ul>
+<li><strong><code>AirflowAdapter</code></strong>: Asynchronous HTTP client (<code>httpx.AsyncClient</code>) interacting directly with Airflow 2.0+ REST API (<code>/api/v1/dags/...</code>). Supports basic/bearer auth, run filtering, log retrieval, and task execution details.</li>
+<li><strong><code>ArgoAdapter</code></strong>: Asynchronous HTTP client (<code>httpx.AsyncClient</code>) for Argo Workflows REST API (<code>/api/v1/workflows/...</code>).</li>
+<li><strong><code>DagsterAdapter</code> &amp; <code>PrefectAdapter</code></strong>: Pluggable adapter stubs ready for GraphQL and REST integration in v0.2.</li>
+<li><strong><code>AdapterRegistry</code></strong>: Multi-orchestrator registry enabling concurrent pipeline queries, dynamic adapter routing, and unified discovery across heterogeneous stacks.</li>
+</ul>
+<h3 id="3-pipeline-sentinel-packagessentinel-the-observability-engine-mcp-server">3. <code>pipeline-sentinel</code> (<code>packages/sentinel/</code>) — The Observability Engine &amp; MCP Server<a class="headerlink" href="#3-pipeline-sentinel-packagessentinel-the-observability-engine-mcp-server" title="Permanent link">&para;</a></h3>
+<ul>
+<li><strong>MCP Server</strong>: Built on FastMCP, serving 10 standard tools for pipeline status, failure details, lineage tracing, automated diagnosis, remediation planning, data quality checks, and incident logging.</li>
+<li><strong>Tool Registry</strong>: Central single source of truth generating both FastMCP <code>Tool</code> specs and LiteLLM function calling schemas with zero duplication.</li>
+<li><strong>Lineage Tracer</strong>: OpenLineage / Marquez client (<code>MarquezClient</code>) navigating dataset input/output graphs and upstream dependency chains.</li>
+<li><strong>Quality Detectors</strong>:</li>
+<li><code>SchemaDriftDetector</code>: Identifies added, removed, or type-modified columns against Marquez schema baselines.</li>
+<li><code>VolumeAnomalyDetector</code>: Detects anomalous row count variations using moving standard deviation thresholds.</li>
+<li><code>FreshnessDetector</code>: Flags stale datasets exceeding configured SLA windows.</li>
+<li><code>CustomSQLDetector</code>: Validates SQL invariant assertions directly against target warehouses.</li>
+<li><strong>FastAPI HTTP Service</strong>: Exposes <code>/health</code>, <code>/metrics</code> (Prometheus), and <code>/api/mcp/call</code> (HTTP fallback for webhooks/non-MCP clients) with full lifespan resource management.</li>
+<li><strong>Typer CLI</strong>: Command-line interface for diagnosing pipelines, inspecting lineage, and running local tests.</li>
+</ul>
+<h3 id="4-dataguard-agents-packagesagents-autonomous-agent-runtime">4. <code>dataguard-agents</code> (<code>packages/agents/</code>) — Autonomous Agent Runtime<a class="headerlink" href="#4-dataguard-agents-packagesagents-autonomous-agent-runtime" title="Permanent link">&para;</a></h3>
+<ul>
+<li><strong><code>TriageAgent</code></strong>: Autonomous multi-turn agent that inspects failed runs, gathers diagnostic evidence through MCP tools, synthesizes root cause analyses, and files incidents.</li>
+<li><strong><code>WatchdogAgent</code></strong>: Asynchronous scheduler that polls orchestrators for pipeline failures, debounces notifications using Redis TTL locks, and triggers automated triage.</li>
+<li><strong><code>TriageReport</code></strong>: Multi-format reporting engine formatting agent outputs into Slack blocks, Markdown summaries, PagerDuty alerts, or raw JSON.</li>
+</ul>
+<hr />
+<h2 id="request-lifecycle-diagnose_failure">Request Lifecycle: <code>diagnose_failure</code><a class="headerlink" href="#request-lifecycle-diagnose_failure" title="Permanent link">&para;</a></h2>
+<pre class="mermaid"><code>sequenceDiagram
+    autonumber
+    actor Client as LLM Client / Agent (Claude, Cursor, TriageAgent)
+    participant Sentinel as Pipeline Sentinel (:8080)
+    participant Redis as Redis 7 (Lock &amp; Cache)
+    participant Orchestrator as Airflow / Argo REST API
+    participant Matcher as Regex Pattern Matcher
+    participant Lineage as Marquez / OpenLineage
+    participant Detectors as Quality Detectors (Schema, Freshness, Vol)
+    participant Postgres as PostgreSQL 16 (Repositories)
+    participant LLM as LiteLLM (Claude / GPT / Ollama / Groq)
+
+    Note over Client, Sentinel: 1. Trigger Autonomous Triage
+    Client-&gt;&gt;Sentinel: diagnose_failure(pipeline_id, run_id)
+
+    Note over Sentinel, Redis: 2. Distributed Mutex Locking
+    Sentinel-&gt;&gt;Redis: acquire_lock("lock:diagnose:{pipeline_id}:{run_id}", ttl=60s)
+    Redis--&gt;&gt;Sentinel: Lock Acquired (token="uuid4")
+
+    Note over Sentinel, Orchestrator: 3. Retrieve Failure Context
+    Sentinel-&gt;&gt;Orchestrator: GET /api/v1/dags/{pipeline_id}/dagRuns/{run_id}/taskInstances
+    Orchestrator--&gt;&gt;Sentinel: Failing task metadata &amp; head/tail truncated logs
+
+    Note over Sentinel, Matcher: 4. Deterministic Fast-Path (&lt; 10ms)
+    Sentinel-&gt;&gt;Matcher: Scan logs for OOM, ConnectionTimeout, HTTP 503, KeyError, SchemaMismatch
+    alt Deterministic Pattern Hit (Known High-Frequency Failure)
+        Matcher--&gt;&gt;Sentinel: Match Found! (Category: schema_drift, Confidence: 0.95)
+        Note over Sentinel: Short-Circuit: LLM reasoning bypassed (0 tokens, &lt;10ms latency)
+    else No Pattern Hit (Novel Failure Mode)
+        Note over Sentinel, Detectors: 5. Concurrent Evidence Gathering (asyncio.gather)
+        par Upstream Lineage
+            Sentinel-&gt;&gt;Lineage: trace_upstream(dataset_id)
+            Lineage--&gt;&gt;Sentinel: Upstream lineage graph &amp; last successful runs
+        and Quality Assertions
+            Sentinel-&gt;&gt;Detectors: check(dataset_id)
+            Detectors--&gt;&gt;Sentinel: SchemaDrift / Volume / Freshness metrics
+        and Historical Similarity
+            Sentinel-&gt;&gt;Postgres: IncidentRepository.find_similar(pipeline_id)
+            Postgres--&gt;&gt;Sentinel: Historical incidents &amp; past resolutions
+        end
+
+        Note over Sentinel, LLM: 6. Structured LLM Reasoning
+        Sentinel-&gt;&gt;LLM: complete_structured(enriched prompt, schema=DiagnosisResult)
+        LLM--&gt;&gt;Sentinel: Validated DiagnosisResult(root_cause, confidence, recommendation)
+    end
+
+    Note over Sentinel, Postgres: 7. State Persistence
+    Sentinel-&gt;&gt;Postgres: IncidentRepository.create(incident_details)
+    Postgres--&gt;&gt;Sentinel: Created (INC-089)
+
+    Note over Sentinel, Redis: 8. Release Distributed Lock
+    Sentinel-&gt;&gt;Redis: release_lock(token="uuid4") via atomic Lua script
+    Redis--&gt;&gt;Sentinel: Mutex released
+
+    Sentinel--&gt;&gt;Client: Return DiagnosisResult + Incident Reference (INC-089)</code></pre>
+<div class="language-text highlight"><pre><span></span><code><span id="__span-1-1"><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a>MCP Client (Claude Desktop / Cursor / TriageAgent)
+</span><span id="__span-1-2"><a id="__codelineno-1-2" name="__codelineno-1-2" href="#__codelineno-1-2"></a>  └─ diagnose_failure(pipeline_id, run_id)
+</span><span id="__span-1-3"><a id="__codelineno-1-3" name="__codelineno-1-3" href="#__codelineno-1-3"></a>       │
+</span><span id="__span-1-4"><a id="__codelineno-1-4" name="__codelineno-1-4" href="#__codelineno-1-4"></a>       ├─ 1. Acquire Redis distributed lock (&quot;lock:diagnose:{pipeline_id}:{run_id}&quot;)
+</span><span id="__span-1-5"><a id="__codelineno-1-5" name="__codelineno-1-5" href="#__codelineno-1-5"></a>       │     └─ If locked: return &quot;DIAGNOSIS_IN_PROGRESS&quot;
+</span><span id="__span-1-6"><a id="__codelineno-1-6" name="__codelineno-1-6" href="#__codelineno-1-6"></a>       │
+</span><span id="__span-1-7"><a id="__codelineno-1-7" name="__codelineno-1-7" href="#__codelineno-1-7"></a>       ├─ 2. OrchestratorAdapter.get_failure_details()
+</span><span id="__span-1-8"><a id="__codelineno-1-8" name="__codelineno-1-8" href="#__codelineno-1-8"></a>       │     └─ Fetch run metadata, error logs, and failing task IDs
+</span><span id="__span-1-9"><a id="__codelineno-1-9" name="__codelineno-1-9" href="#__codelineno-1-9"></a>       │
+</span><span id="__span-1-10"><a id="__codelineno-1-10" name="__codelineno-1-10" href="#__codelineno-1-10"></a>       ├─ 3. Deterministic Pattern Matchers (_PATTERN_MATCHERS)
+</span><span id="__span-1-11"><a id="__codelineno-1-11" name="__codelineno-1-11" href="#__codelineno-1-11"></a>       │     ├─ Regex scans logs for OOM, ConnectionTimeout, HTTP 503, KeyError,
+</span><span id="__span-1-12"><a id="__codelineno-1-12" name="__codelineno-1-12" href="#__codelineno-1-12"></a>       │     │  ColumnNotFound, SchemaMismatch, UpstreamFailed
+</span><span id="__span-1-13"><a id="__codelineno-1-13" name="__codelineno-1-13" href="#__codelineno-1-13"></a>       │     └─ [MATCH FOUND] → Return immediate DiagnosisResult (Confidence: 0.95, LLM bypassed)
+</span><span id="__span-1-14"><a id="__codelineno-1-14" name="__codelineno-1-14" href="#__codelineno-1-14"></a>       │
+</span><span id="__span-1-15"><a id="__codelineno-1-15" name="__codelineno-1-15" href="#__codelineno-1-15"></a>       ├─ 4. [NO MATCH] Concurrent Evidence Gathering (asyncio.gather)
+</span><span id="__span-1-16"><a id="__codelineno-1-16" name="__codelineno-1-16" href="#__codelineno-1-16"></a>       │     ├─ LineageTracer.trace_upstream(dataset_id)
+</span><span id="__span-1-17"><a id="__codelineno-1-17" name="__codelineno-1-17" href="#__codelineno-1-17"></a>       │     ├─ QualityDetectors (SchemaDrift, Freshness, VolumeAnomaly)
+</span><span id="__span-1-18"><a id="__codelineno-1-18" name="__codelineno-1-18" href="#__codelineno-1-18"></a>       │     └─ IncidentRepository.find_similar(pipeline_id)
+</span><span id="__span-1-19"><a id="__codelineno-1-19" name="__codelineno-1-19" href="#__codelineno-1-19"></a>       │
+</span><span id="__span-1-20"><a id="__codelineno-1-20" name="__codelineno-1-20" href="#__codelineno-1-20"></a>       ├─ 5. Structured LLM Completion (LLMClient.complete_structured)
+</span><span id="__span-1-21"><a id="__codelineno-1-21" name="__codelineno-1-21" href="#__codelineno-1-21"></a>       │     ├─ Prompt enriched with log excerpt, lineage context, detector findings, past incidents
+</span><span id="__span-1-22"><a id="__codelineno-1-22" name="__codelineno-1-22" href="#__codelineno-1-22"></a>       │     └─ Pydantic schema validation returns DiagnosisResult:
+</span><span id="__span-1-23"><a id="__codelineno-1-23" name="__codelineno-1-23" href="#__codelineno-1-23"></a>       │          - root_cause_category: RootCauseCategory
+</span><span id="__span-1-24"><a id="__codelineno-1-24" name="__codelineno-1-24" href="#__codelineno-1-24"></a>       │          - confidence: float (0.0 - 1.0)
+</span><span id="__span-1-25"><a id="__codelineno-1-25" name="__codelineno-1-25" href="#__codelineno-1-25"></a>       │          - evidence: list[str]
+</span><span id="__span-1-26"><a id="__codelineno-1-26" name="__codelineno-1-26" href="#__codelineno-1-26"></a>       │          - similar_incidents: list[IncidentRef]
+</span><span id="__span-1-27"><a id="__codelineno-1-27" name="__codelineno-1-27" href="#__codelineno-1-27"></a>       │          - recommended_action: str
+</span><span id="__span-1-28"><a id="__codelineno-1-28" name="__codelineno-1-28" href="#__codelineno-1-28"></a>       │
+</span><span id="__span-1-29"><a id="__codelineno-1-29" name="__codelineno-1-29" href="#__codelineno-1-29"></a>       └─ 6. Release Redis distributed lock (Lua script token verification)
+</span></code></pre></div>
+<hr />
+<h2 id="state-store-data-models">State Store &amp; Data Models<a class="headerlink" href="#state-store-data-models" title="Permanent link">&para;</a></h2>
+<h3 id="postgresql-16-relational-system-of-record">PostgreSQL 16 (Relational System of Record)<a class="headerlink" href="#postgresql-16-relational-system-of-record" title="Permanent link">&para;</a></h3>
+<p>Interacted via SQLAlchemy 2.0 async + <code>asyncpg</code> with dedicated repositories:
+- <strong><code>incidents</code></strong> (<code>IncidentRepository</code>):
+  - Fields: <code>id</code>, <code>title</code>, <code>pipeline_id</code>, <code>severity</code>, <code>status</code>, <code>description</code>, <code>diagnosis_id</code>, <code>created_at</code>, <code>updated_at</code>, <code>resolved_at</code>.
+- <strong><code>remediation_plans</code></strong> (<code>RemediationRepository</code>):
+  - Fields: <code>id</code>, <code>pipeline_id</code>, <code>diagnosis_id</code>, <code>steps</code> (JSONB), <code>risk_level</code>, <code>estimated_resolution_time</code>, <code>rollback_plan</code>, <code>requires_human_approval</code>, <code>created_at</code>.
+- <strong><code>remediation_audit</code></strong> (<code>AuditRepository</code>):
+  - Immutable audit trail capturing <code>id</code>, <code>remediation_id</code>, <code>approver_id</code>, <code>action</code>, <code>status</code>, <code>executed_at</code>, <code>details</code> (JSONB).</p>
+<h3 id="redis-7-ephemeral-cache-synchronization">Redis 7 (Ephemeral Cache &amp; Synchronization)<a class="headerlink" href="#redis-7-ephemeral-cache-synchronization" title="Permanent link">&para;</a></h3>
+<ul>
+<li><strong>Log and Run Cache</strong>: Short-lived TTL (60s) caching of orchestrator responses to prevent thundering herds.</li>
+<li><strong>Distributed Mutex</strong>: Safe locking via UUID tokens and atomic Lua release scripts preventing concurrent LLM triage runs.</li>
+<li><strong>Watchdog Debounce</strong>: Prevents alert storms by recording active incident triage windows.</li>
+</ul>
+<hr />
+<h2 id="observability-telemetry">Observability &amp; Telemetry<a class="headerlink" href="#observability-telemetry" title="Permanent link">&para;</a></h2>
+<h3 id="1-prometheus-metrics-exposed-on-8080metrics">1. Prometheus Metrics (Exposed on <code>:8080/metrics</code>)<a class="headerlink" href="#1-prometheus-metrics-exposed-on-8080metrics" title="Permanent link">&para;</a></h3>
+<ul>
+<li><code>sentinel_mcp_tool_duration_seconds</code> — Histogram of tool execution latency labeled by tool name.</li>
+<li><code>sentinel_mcp_tool_errors_total</code> — Counter of tool failures labeled by tool name and exception class.</li>
+<li><code>sentinel_llm_tokens_total</code> — Counter of prompt and completion tokens labeled by model, provider, and direction.</li>
+<li><code>sentinel_adapter_request_duration_seconds</code> — Histogram of orchestrator API call latency.</li>
+</ul>
+<h3 id="2-opentelemetry-tracing">2. OpenTelemetry Tracing<a class="headerlink" href="#2-opentelemetry-tracing" title="Permanent link">&para;</a></h3>
+<p>Every MCP tool invocation, adapter HTTP request, detector check, and LLM call creates a span in an OpenTelemetry trace hierarchy. Span attributes include:
+- <code>mcp.tool_name</code>, <code>pipeline.id</code>, <code>run.id</code>
+- <code>llm.provider</code>, <code>llm.model</code>, <code>llm.prompt_tokens</code>, <code>llm.completion_tokens</code>
+- Trace IDs are propagated across asynchronous subtasks via <code>dataguard_core.tracing</code>.</p>
+<h3 id="3-structured-logging-structlog">3. Structured Logging (<code>structlog</code>)<a class="headerlink" href="#3-structured-logging-structlog" title="Permanent link">&para;</a></h3>
+<ul>
+<li>Structured JSON output in production, colorized console output in development.</li>
+<li>OTel context injector automatically embeds <code>trace_id</code> and <code>span_id</code> into every log event.</li>
+</ul>
+<hr />
+<h2 id="security-model">Security Model<a class="headerlink" href="#security-model" title="Permanent link">&para;</a></h2>
+<ol>
+<li><strong>Credential Segregation</strong>: Credentials (API tokens, database passwords, basic auth) are loaded exclusively through environment variables or Kubernetes Secret volume mounts.</li>
+<li><strong>Read-Only Orchestration</strong>: Orchestrator adapters require only viewer/reader privileges in Airflow or Argo.</li>
+<li><strong>Four-Eye Remediation Gating</strong>:
+   <code>execute_remediation</code> will refuse execution unless all four conditions are met:</li>
+<li><code>auto_remediation_enabled</code> is set to <code>true</code> in configuration.</li>
+<li><code>confirm: true</code> is explicitly passed in the MCP tool parameters.</li>
+<li>A non-empty <code>approver_id</code> is supplied.</li>
+<li>The plan's <code>risk_level</code> does not exceed <code>auto_remediation_max_risk</code>.</li>
+<li><strong>Non-Root Runtime</strong>: Docker containers and Kubernetes Pods execute under UID 65532 with read-only root filesystems and dropped capabilities.</li>
+</ol>
+
+
+
+
+
+
+
+
+
+
+
+
+                
+              </article>
+            </div>
+          
+          
+<script>var target=document.getElementById(location.hash.slice(1));target&&target.name&&(target.checked=target.name.startsWith("__tabbed_"))</script>
+        </div>
+        
+          <button type="button" class="md-top md-icon" data-md-component="top" hidden>
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M13 20h-2V8l-5.5 5.5-1.42-1.42L12 4.16l7.92 7.92-1.42 1.42L13 8z"/></svg>
+  Back to top
+</button>
+        
+      </main>
+      
+        <footer class="md-footer">
+  
+    
+      
+      <nav class="md-footer__inner md-grid" aria-label="Footer" >
+        
+          
+          <a href="../quickstart/" class="md-footer__link md-footer__link--prev" aria-label="Previous: Quickstart">
+            <div class="md-footer__button md-icon">
+              
+              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"/></svg>
+            </div>
+            <div class="md-footer__title">
+              <span class="md-footer__direction">
+                Previous
+              </span>
+              <div class="md-ellipsis">
+                Quickstart
+              </div>
+            </div>
+          </a>
+        
+        
+          
+          <a href="../mcp-tools/" class="md-footer__link md-footer__link--next" aria-label="Next: MCP Tools">
+            <div class="md-footer__title">
+              <span class="md-footer__direction">
+                Next
+              </span>
+              <div class="md-ellipsis">
+                MCP Tools
+              </div>
+            </div>
+            <div class="md-footer__button md-icon">
+              
+              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M4 11v2h12l-5.5 5.5 1.42 1.42L19.84 12l-7.92-7.92L10.5 5.5 16 11z"/></svg>
+            </div>
+          </a>
+        
+      </nav>
+    
+  
+  <div class="md-footer-meta md-typeset">
+    <div class="md-footer-meta__inner md-grid">
+      <div class="md-copyright">
+  
+  
+    Made with
+    <a href="https://squidfunk.github.io/mkdocs-material/" target="_blank" rel="noopener">
+      Material for MkDocs
+    </a>
+  
+</div>
+      
+    </div>
+  </div>
+</footer>
+      
+    </div>
+    <div class="md-dialog" data-md-component="dialog">
+      <div class="md-dialog__inner md-typeset"></div>
+    </div>
+    
+    
+    
+      
+      
+      <script id="__config" type="application/json">{"annotate": null, "base": "..", "features": ["navigation.tabs", "navigation.sections", "navigation.top", "navigation.footer", "content.code.annotate", "content.code.copy", "content.action.edit"], "search": "../assets/javascripts/workers/search.2c215733.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": null}</script>
+    
+    
+      <script src="../assets/javascripts/bundle.79ae519e.min.js"></script>
+      
+    
+  </body>
+</html>
