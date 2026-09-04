@@ -58,6 +58,64 @@ dataguard-agents
 
 ## Request Lifecycle: `diagnose_failure`
 
+```mermaid
+sequenceDiagram
+    autonumber
+    actor Client as LLM Client / Agent (Claude, Cursor, TriageAgent)
+    participant Sentinel as Pipeline Sentinel (:8080)
+    participant Redis as Redis 7 (Lock & Cache)
+    participant Orchestrator as Airflow / Argo REST API
+    participant Matcher as Regex Pattern Matcher
+    participant Lineage as Marquez / OpenLineage
+    participant Detectors as Quality Detectors (Schema, Freshness, Vol)
+    participant Postgres as PostgreSQL 16 (Repositories)
+    participant LLM as LiteLLM (Claude / GPT / Ollama / Groq)
+
+    Note over Client, Sentinel: 1. Trigger Autonomous Triage
+    Client->>Sentinel: diagnose_failure(pipeline_id, run_id)
+
+    Note over Sentinel, Redis: 2. Distributed Mutex Locking
+    Sentinel->>Redis: acquire_lock("lock:diagnose:{pipeline_id}:{run_id}", ttl=60s)
+    Redis-->>Sentinel: Lock Acquired (token="uuid4")
+
+    Note over Sentinel, Orchestrator: 3. Retrieve Failure Context
+    Sentinel->>Orchestrator: GET /api/v1/dags/{pipeline_id}/dagRuns/{run_id}/taskInstances
+    Orchestrator-->>Sentinel: Failing task metadata & head/tail truncated logs
+
+    Note over Sentinel, Matcher: 4. Deterministic Fast-Path (< 10ms)
+    Sentinel->>Matcher: Scan logs for OOM, ConnectionTimeout, HTTP 503, KeyError, SchemaMismatch
+    alt Deterministic Pattern Hit (Known High-Frequency Failure)
+        Matcher-->>Sentinel: Match Found! (Category: schema_drift, Confidence: 0.95)
+        Note over Sentinel: Short-Circuit: LLM reasoning bypassed (0 tokens, <10ms latency)
+    else No Pattern Hit (Novel Failure Mode)
+        Note over Sentinel, Detectors: 5. Concurrent Evidence Gathering (asyncio.gather)
+        par Upstream Lineage
+            Sentinel->>Lineage: trace_upstream(dataset_id)
+            Lineage-->>Sentinel: Upstream lineage graph & last successful runs
+        and Quality Assertions
+            Sentinel->>Detectors: check(dataset_id)
+            Detectors-->>Sentinel: SchemaDrift / Volume / Freshness metrics
+        and Historical Similarity
+            Sentinel->>Postgres: IncidentRepository.find_similar(pipeline_id)
+            Postgres-->>Sentinel: Historical incidents & past resolutions
+        end
+
+        Note over Sentinel, LLM: 6. Structured LLM Reasoning
+        Sentinel->>LLM: complete_structured(enriched prompt, schema=DiagnosisResult)
+        LLM-->>Sentinel: Validated DiagnosisResult(root_cause, confidence, recommendation)
+    end
+
+    Note over Sentinel, Postgres: 7. State Persistence
+    Sentinel->>Postgres: IncidentRepository.create(incident_details)
+    Postgres-->>Sentinel: Created (INC-089)
+
+    Note over Sentinel, Redis: 8. Release Distributed Lock
+    Sentinel->>Redis: release_lock(token="uuid4") via atomic Lua script
+    Redis-->>Sentinel: Mutex released
+
+    Sentinel-->>Client: Return DiagnosisResult + Incident Reference (INC-089)
+```
+
 ```
 MCP Client (Claude Desktop / Cursor / TriageAgent)
   └─ diagnose_failure(pipeline_id, run_id)
