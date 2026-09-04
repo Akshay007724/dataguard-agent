@@ -8,3 +8,8 @@
 - [Adapters](adapters.md) — Airflow, Argo Workflows, and implementing new adapters
 - [Detectors](detectors.md) — schema drift, volume anomaly, freshness
 - [Deployment](deployment.md) — Helm, ArgoCD, production hardening
+
+
+<p align="center">
+  <img src="assets/live-action-diagram.gif" alt="DataGuard Sentinel Live Action Flow" width="100%">
+</p>

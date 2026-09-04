@@ -58,6 +58,10 @@ dataguard-agents
 
 ## Request Lifecycle: `diagnose_failure`
 
+<p align="center">
+  <img src="assets/live-action-diagram.gif" alt="DataGuard Sentinel Live Action Flow" width="100%">
+</p>
+
 ```mermaid
 sequenceDiagram
     autonumber

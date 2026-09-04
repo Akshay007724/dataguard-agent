@@ -102,6 +102,10 @@ See [ARCHITECTURE.md](ARCHITECTURE.md) for design rationale and request lifecycl
 
 ## Live Action Flow: How It Works
 
+<p align="center">
+  <img src="docs/assets/live-action-diagram.gif" alt="DataGuard Sentinel Live Action Flow" width="100%">
+</p>
+
 The following sequence diagram shows the real-time execution flow when an agent or user invokes `diagnose_failure`:
 
 ```mermaid
